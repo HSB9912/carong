@@ -374,7 +374,9 @@
             calendarView: { year: new Date().getFullYear(), month: new Date().getMonth() },
             guildRanks: initialGuildRanks,
             currentSelectedDate: null,
-            pagination: { members: 1, analysis: 1 } 
+            pagination: { members: 1, analysis: 1 },
+            isKickMode: false, kickSelection: new Set(), isBatchMode: false, pendingUpdates: {},
+            _pendingRoleChanges: null, deleteType: ''
         };
 
         window.showMsg = (text, type = 'info') => {
@@ -652,8 +654,12 @@
                 const members = await fetchAll('members', 'name');
                 const periods = await fetchAll('suro_periods', 'id', '*');
                 const scores = await fetchAll('suro_scores', 'id', '*');
-                const bail = await fetchAll('bail_history', 'id', 'receiver, amount', false);
-                const penalty = await fetchAll('penalty_history', 'id', 'points', false);
+                const bail = isAdmin() 
+                    ? await fetchAll('bail_history', 'id', '*', false)
+                    : await fetchAll('bail_history', 'id', 'receiver, amount', false);
+                const penalty = isAdmin()
+                    ? await fetchAll('penalty_history', 'id', '*', false)
+                    : await fetchAll('penalty_history', 'id', 'points', false);
                 const events = await fetchAll('events', 'date', '*', false);
 
                 // Build suro score map
@@ -680,20 +686,37 @@
                     suro: scoreMap[m.id] || {}
                 }));
                 appState.history = [];
-                appState.bailHistory = bail.map(h => ({
-                    receiver: h.receiver,
-                    amount: h.amount
-                }));
+                if (isAdmin()) {
+                    // admin: 전체 데이터
+                    appState.bailHistory = bail.map(h => ({
+                        id: h.id, date: h.date, payer: h.payer, receiver: h.receiver,
+                        amount: h.amount, memo: h.memo || ''
+                    }));
+                    appState.penaltyHistory = penalty.map(p => ({
+                        id: p.id, date: p.date, name: p.name, points: p.points, reason: p.reason || ''
+                    }));
+                    // operation_history 로드
+                    try {
+                        const hist = await fetchAll('operation_history', 'id', '*', true);
+                        appState.history = (hist || []).map(h => ({ id: h.id, date: h.date, category: h.category, name: h.name, content: h.content }));
+                    } catch(e) {}
+                } else {
+                    // guest: 마스킹된 데이터
+                    appState.bailHistory = bail.map(h => ({
+                        receiver: h.receiver,
+                        amount: h.amount
+                    }));
+                    appState.penaltyHistory = penalty.map(h => ({
+                        name: '******',
+                        points: h.points,
+                        reason: '비공개'
+                    }));
+                }
                 appState.events = events.map(e => ({
                     id: e.id,
                     date: (e.date || '').split('T')[0].trim(),
                     title: e.title,
                     content: e.content
-                }));
-                appState.penaltyHistory = penalty.map(h => ({
-                    name: '******',
-                    points: h.points,
-                    reason: '비공개'
                 }));
                 appState._penaltyCounts = {};
                 penalty.forEach((h, i) => {
@@ -1909,7 +1932,9 @@
         // 페이지 로드 시 인증 체크
         supaDb.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN') {
-                window._checkAuth().then(() => router(appState.activeTab));
+                window._checkAuth().then(() => {
+                    window.fetchMembers(); // admin 데이터로 재로드
+                });
             } else if (event === 'SIGNED_OUT') {
                 userRole = 'guest'; CURRENT_USER = null;
                 window.updateAuthUI();
@@ -1950,6 +1975,83 @@
         // (showMsg는 위에서 정의됨)
 
         window.closeModal = (id) => { document.getElementById(id)?.classList.add('hidden'); };
+
+        // ═══ 관리자 멤버 관리 함수 (from admin, lines 756-830) ═══
+        window.toggleBatchMode = () => { 
+            appState.isBatchMode = !appState.isBatchMode; 
+            if(appState.isBatchMode) {
+                appState.isKickMode = false;
+                appState.kickSelection.clear();
+            }
+            appState.pendingUpdates = {}; 
+            window.renderMembers(document.getElementById('contentArea')); 
+        };
+
+        window.stageUpdate = (id, field, val) => { 
+            if(!appState.pendingUpdates[id]) appState.pendingUpdates[id] = { id }; 
+            appState.pendingUpdates[id][field] = val; 
+            window.updateMemberTable(); 
+        };
+
+        window.saveBatchUpdates = async () => { 
+            const updates = Object.values(appState.pendingUpdates); 
+            if(updates.length === 0) return window.showMsg("수정된 내용이 없습니다.", "error"); 
+            
+            if(confirm(`${updates.length}명의 정보를 업데이트하시겠습니까?`)) { 
+                window.showLoading(true); 
+                window.setLoadProgress(10, '일괄 수정 준비 중...');
+                
+                const allMembers = appState.members.map(m => {
+                    const upd = appState.pendingUpdates[m.id];
+                    return {
+                        name: m.name, guild: upd?.guild !== undefined ? upd.guild : m.guild,
+                        role: upd?.role !== undefined ? upd.role : m.role,
+                        class: upd?.class !== undefined ? upd.class : (m.class || ''),
+                        isMain: m.isMain || false,
+                        mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
+                    };
+                });
+                
+                window.setLoadProgress(30, '서버에 전송 중...');
+                const success = await window.sendAction('save_members', { members: allMembers });
+                
+                window.setLoadProgress(80, '데이터 갱신 중...');
+                if(success) {
+                    window.showMsg(`${updates.length}명의 정보가 저장되었습니다.`, "success");
+                    appState.isBatchMode = false; 
+                    appState.pendingUpdates = {};
+                    await window.fetchMembers();
+                }
+                window.showLoading(false);
+            } 
+        };
+
+        window.toggleKickMode = () => {
+            appState.isKickMode = !appState.isKickMode;
+            if(appState.isKickMode) {
+                appState.isBatchMode = false;
+                appState.pendingUpdates = {};
+            }
+            appState.kickSelection.clear();
+            window.renderMembers(document.getElementById('contentArea'));
+        };
+
+        window.handleKickSelect = (id) => {
+            if(appState.kickSelection.has(id)) appState.kickSelection.delete(id);
+            else appState.kickSelection.add(id);
+            window.renderMembers(document.getElementById('contentArea'));
+        };
+
+        window.openBulkKickModal = () => {
+            if(appState.kickSelection.size === 0) return window.showMsg("선택된 인원이 없습니다.", "error");
+            appState.deleteType = 'kick'; 
+            document.getElementById('deleteTargetName').innerText = `'${appState.kickSelection.size}명'`;
+            document.getElementById('btnLeave').classList.add('hidden');
+            document.getElementById('btnKick').classList.add('hidden');
+            document.getElementById('deleteReason').value = '';
+            document.getElementById('deleteModal').classList.remove('hidden');
+        };
+
 
         // ═══ sendAction (from admin, lines 982-1345) ═══
         window.sendAction = async (action, data, skipRefresh = false) => {
