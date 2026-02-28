@@ -1947,16 +1947,7 @@
         };
 
 
-        // ██ 토스트 메시지 ██
-        window.showMsg = (msg, type = 'info') => {
-            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500', warning: 'bg-amber-500' };
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 z-[9999] ${colors[type] || colors.info} text-white px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl transition-all duration-300 opacity-0 translate-y-[-10px]`;
-            toast.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':type==='error'?'exclamation-circle':'info-circle'} mr-2"></i>${msg}`;
-            document.body.appendChild(toast);
-            requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
-            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px)'; setTimeout(() => toast.remove(), 300); }, 3000);
-        };
+        // (showMsg는 위에서 정의됨)
 
         window.closeModal = (id) => { document.getElementById(id)?.classList.add('hidden'); };
 
@@ -2071,7 +2062,7 @@
             }
         };
 
-        window.router = (tab) => {
+        // (router는 위에서 정의됨)
 
         // ★ 직위 자동 부여 (뚠카롱 본캐 전용, 마카롱/다쿠아즈/부캐 제외)
         window.autoAssignRoles = () => {
@@ -2305,24 +2296,7 @@
             window.showLoading(false);
             window._pendingRoleChanges = null;
         };
-            appState.activeTab = tab;
-            const content = document.getElementById('contentArea'); if(!content) return;
-            content.innerHTML = '';
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.target === tab));
-            const titles = { dashboard: '길드 현황판', members: '길드원 관리', analysis: '수로 분석', suro_input: '수로 점수 입력', bail: '보석금 관리', penalty: '벌점 관리 시스템', sheet: 'DB 시트 뷰어', guide_edit: '가이드 편집', history: '운영 이력', sync: '길드원 동기화', settings: '설정' };
-            document.getElementById('pageTitle').innerText = titles[tab] || '';
-            if (tab === 'dashboard') window.renderDashboard(content);
-            else if (tab === 'members') window.renderMembers(content);
-            else if (tab === 'analysis') window.renderAnalysis(content, appState.analysisGuild);
-            else if (tab === 'suro_input') window.renderSuroInput(content);
-            else if (tab === 'bail') window.renderBail(content);
-            else if (tab === 'penalty') window.renderPenalty(content);
-            else if (tab === 'sheet') window.renderSheet(content);
-            else if (tab === 'guide_edit') window.renderGuideEditor(content);
-            else if (tab === 'history') window.renderHistory(content);
-            else if (tab === 'sync') window.renderSync(content);
-            else if (tab === 'settings') { window.renderSettings(content); setTimeout(() => window._loadAdminList(), 100); }
-        };
+            // (관리자 router 분기는 위 퍼블릭 router에 통합됨)
 
         // --- DASHBOARD ---
 
@@ -6223,27 +6197,7 @@
             ov.onclick = () => { sb.classList.add('-translate-x-full'); ov.classList.add('hidden'); };
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            initSidebar();
-            const authed = await window._authCheck();
-            if (authed) {
-                // 사이드바 하단에 사용자 정보 표시
-                const sidebarFooter = document.querySelector('#sidebar > div:last-child');
-                if (sidebarFooter && CURRENT_USER) {
-                    sidebarFooter.innerHTML = `
-                        <div class="flex items-center gap-2 mb-2">
-                            ${CURRENT_USER.avatar ? `<img src="${CURRENT_USER.avatar}" class="w-7 h-7 rounded-full border border-pink-200">` : `<div class="w-7 h-7 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 text-[10px] font-bold">${(CURRENT_USER.name||'?')[0]}</div>`}
-                            <div class="min-w-0">
-                                <p class="text-[10px] font-bold text-gray-700 truncate">${CURRENT_USER.name}</p>
-                                <p class="text-[8px] text-gray-400 truncate">${CURRENT_USER.role}</p>
-                            </div>
-                        </div>
-                        <button onclick="window._authLogout()" class="w-full py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-[9px] font-bold text-gray-500 transition-all"><i class="fas fa-sign-out-alt mr-1"></i>로그아웃</button>
-                    `;
-                }
-                window.fetchMembers();
-            }
-        });
+
 
     </script>
     <div id="memberModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/30 backdrop-blur-sm hidden fade-in font-bold p-4"><div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"><div class="p-5 lg:p-6 bg-pink-50 border-b border-pink-100 flex justify-between items-center"><div><h3 id="modalTitle" class="text-base lg:text-lg font-bold text-pink-700 tracking-tight">멤버 정보 입력</h3></div><button onclick="closeModal('memberModal')"><i class="fas fa-times text-gray-400 text-lg"></i></button></div><form id="memberForm" class="p-6 lg:p-8 space-y-4 lg:space-y-5"><input type="hidden" id="editMemberId"><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">닉네임</label><input type="text" id="inputName" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 outline-none focus:ring-4 focus:ring-pink-50 text-sm font-bold shadow-inner" required placeholder="정확한 캐릭터명"></div><div class="grid grid-cols-2 gap-3 lg:gap-4"><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">소속</label><select id="inputGuild" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none" onchange="onGuildSelectChange(this.value)"></select></div><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">직위</label><select id="inputRole" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none"></select></div></div><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">직업</label><select id="inputClass" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none shadow-inner cursor-pointer"><option value="">직업을 선택하세요</option></select></div><div class="flex items-center gap-3 py-1"><input type="checkbox" id="inputIsMain" class="w-5 h-5 text-pink-500 rounded focus:ring-pink-50 shadow-sm cursor-pointer" checked onchange="toggleMainCharInput()"><label for="inputIsMain" class="text-[10px] lg:text-[11px] font-bold text-gray-600 uppercase tracking-tight cursor-pointer">본캐릭터입니까?</label></div><div id="mainCharInputGroup" class="hidden animate-fade-in space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">본캐 닉네임</label><input type="text" id="inputMainCharName" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none shadow-inner" placeholder="본캐릭명 입력"></div><button type="submit" id="btnSubmitMember" class="w-full bg-gray-900 text-white py-3.5 lg:py-4 rounded-xl lg:rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl mt-2">데이터베이스에 저장</button></form></div></div>
