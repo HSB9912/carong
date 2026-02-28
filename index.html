@@ -233,6 +233,17 @@
         body.dark .analysis-table-wrap table tbody tr:hover td:nth-child(2) { background: #22252f !important; }
         body.dark .analysis-table-wrap table thead th:nth-child(1),
         body.dark .analysis-table-wrap table thead th:nth-child(2) { background: #14161e !important; }
+        /* 모바일 하단 탭바 */
+        .mobile-tab { color: #9ca3af; transition: all 0.15s; }
+        .mobile-tab.active { color: #ec4899; }
+        .mobile-tab:active { transform: scale(0.92); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+        @media (max-width: 1023px) {
+            #contentArea { padding-bottom: 60px !important; }
+        }
+        body.dark #mobileTabBar { background: #14161e !important; border-color: #2a2d3a !important; }
+        body.dark .mobile-tab { color: #6b7280; }
+        body.dark .mobile-tab.active { color: #f472b6; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 h-screen overflow-hidden flex font-medium">
@@ -336,6 +347,36 @@
         </header>
         <div id="contentArea" class="flex-1 overflow-y-auto p-2 sm:p-3 lg:p-6 relative bg-gray-50 flex flex-col min-h-0"></div>
     </main>
+
+    <!-- 모바일 하단 탭바 -->
+    <nav id="mobileTabBar" class="lg:hidden fixed bottom-0 left-0 right-0 z-[999] bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] safe-bottom">
+        <div class="flex items-center justify-around h-14 px-1">
+            <button onclick="window._mobileTab('guide_intro')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="guide_intro">
+                <i class="fas fa-heart text-sm"></i>
+                <span class="text-[9px] font-bold">소개</span>
+            </button>
+            <button onclick="window._mobileTab('dashboard')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="dashboard">
+                <i class="fas fa-columns text-sm"></i>
+                <span class="text-[9px] font-bold">현황</span>
+            </button>
+            <button onclick="window._mobileTab('members')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="members">
+                <i class="fas fa-users text-sm"></i>
+                <span class="text-[9px] font-bold">길드원</span>
+            </button>
+            <button onclick="window._mobileTab('analysis')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="analysis">
+                <i class="fas fa-chart-line text-sm"></i>
+                <span class="text-[9px] font-bold">수로</span>
+            </button>
+            <button onclick="window._mobileTab('bail')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="bail">
+                <i class="fas fa-gem text-sm"></i>
+                <span class="text-[9px] font-bold">보석금</span>
+            </button>
+            <button onclick="window._mobileOpenMore()" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="more">
+                <i class="fas fa-bars text-sm"></i>
+                <span class="text-[9px] font-bold">더보기</span>
+            </button>
+        </div>
+    </nav>
 
     <!-- Modals -->
     <div id="memberModal" class="fixed inset-0 z-[2000] flex items-center justify-center bg-black/30 backdrop-blur-sm hidden fade-in font-bold p-4"><div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-gray-100"><div class="p-5 lg:p-6 bg-pink-50 border-b border-pink-100 flex justify-between items-center"><div><h3 id="modalTitle" class="text-base lg:text-lg font-bold text-pink-700 tracking-tight">멤버 정보 입력</h3></div><button onclick="closeModal('memberModal')"><i class="fas fa-times text-gray-400 text-lg"></i></button></div><form id="memberForm" class="p-6 lg:p-8 space-y-4 lg:space-y-5"><input type="hidden" id="editMemberId"><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">닉네임</label><input type="text" id="inputName" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 outline-none focus:ring-4 focus:ring-pink-50 text-sm font-bold shadow-inner" required placeholder="정확한 캐릭터명"></div><div class="grid grid-cols-2 gap-3 lg:gap-4"><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">소속</label><select id="inputGuild" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none" onchange="onGuildSelectChange(this.value)"></select></div><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">직위</label><select id="inputRole" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none"></select></div></div><div class="space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">직업</label><select id="inputClass" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none shadow-inner cursor-pointer"><option value="">직업을 선택하세요</option></select></div><div class="flex items-center gap-3 py-1"><input type="checkbox" id="inputIsMain" class="w-5 h-5 text-pink-500 rounded focus:ring-pink-50 shadow-sm cursor-pointer" checked onchange="toggleMainCharInput()"><label for="inputIsMain" class="text-[10px] lg:text-[11px] font-bold text-gray-600 uppercase tracking-tight cursor-pointer">본캐릭터입니까?</label></div><div id="mainCharInputGroup" class="hidden animate-fade-in space-y-1"><label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">본캐 닉네임</label><input type="text" id="inputMainCharName" class="w-full border border-gray-100 bg-gray-50 rounded-xl lg:rounded-2xl p-3 lg:p-3.5 text-xs lg:text-sm font-bold outline-none shadow-inner" placeholder="본캐릭명 입력"></div><button type="submit" id="btnSubmitMember" class="w-full bg-gray-900 text-white py-3.5 lg:py-4 rounded-xl lg:rounded-2xl font-bold uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-xl mt-2">데이터베이스에 저장</button></form></div></div>
@@ -1337,6 +1378,10 @@
             else if (tab === 'sync' && isAdmin()) window.renderSync(content);
             else if (tab === 'settings' && isAdmin()) { window.renderSettings(content); setTimeout(() => window._loadAdminList(), 100); }
             else if (tab.startsWith('guide_')) window.renderGuide(content, tab.replace('guide_',''));
+            // 모바일: 사이드바 닫기 + 탭바 업데이트
+            const _sb = document.getElementById('sidebar'), _ov = document.getElementById('sidebarOverlay');
+            if (window.innerWidth < 1024 && _sb) { _sb.classList.add('-translate-x-full'); _ov?.classList.add('hidden'); }
+            if (window._updateMobileTab) window._updateMobileTab(tab);
         };
 
         // --- DASHBOARD ---
@@ -6037,6 +6082,23 @@
             }
         };
 
+
+        // ═══ 모바일 하단 탭바 ═══
+        window._mobileTab = (tab) => {
+            router(tab);
+        };
+        window._mobileOpenMore = () => {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            sb.classList.remove('-translate-x-full');
+            ov.classList.remove('hidden');
+        };
+        window._updateMobileTab = (tab) => {
+            document.querySelectorAll('.mobile-tab').forEach(btn => {
+                const t = btn.dataset.tab;
+                btn.classList.toggle('active', t === tab || (t === 'guide_intro' && tab?.startsWith('guide_')));
+            });
+        };
 
         // ═══ 가이드 페이지 렌더 (퍼블릭) ═══
         window.renderGuide = async (container, section) => {
