@@ -5120,6 +5120,11 @@
 
                 resultDiv.innerHTML = html;
 
+                // 신규 멤버가 있으면 자동으로 직업/레벨 일괄 조회
+                if (window._syncNewMembers && window._syncNewMembers.length > 0) {
+                    setTimeout(() => window._syncFetchAllCharInfo(), 300);
+                }
+
             } catch (e) {
                 resultDiv.innerHTML = `<div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
                     <div class="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><i class="fas fa-times text-red-500 text-xl"></i></div>
