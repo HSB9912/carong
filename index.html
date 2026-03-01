@@ -334,6 +334,7 @@
             <button onclick="router('sync')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="sync"><i class="fas fa-sync w-5 text-center text-xs"></i><span>동기화</span></button>
             <button onclick="router('sheet')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="sheet"><i class="fas fa-database w-5 text-center text-xs"></i><span>DB 시트</span></button>
             <button onclick="router('history')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="history"><i class="fas fa-history w-5 text-center text-xs"></i><span>운영 이력</span></button>
+            <button onclick="router('records')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="records"><i class="fas fa-book w-5 text-center text-xs"></i><span>영구 기록</span></button>
             <button onclick="router('settings')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="settings"><i class="fas fa-cog w-5 text-center text-xs"></i><span>설정</span></button>
         </nav>
         <div class="p-4 border-t border-gray-100 bg-gray-50/50 text-center font-bold"><p class="text-[10px] text-green-500 uppercase tracking-widest"><i class="fas fa-cloud mr-1 animate-pulse"></i> Supabase Connected</p></div>
@@ -1480,7 +1481,7 @@
             const content = document.getElementById('contentArea'); if(!content) return;
             content.innerHTML = '';
             document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.target === tab));
-            const titles = { home: '홈', members: '길드원', analysis: '수로 분석', suro_input: '수로 입력', bail: '보석금', penalty: '벌점', sheet: 'DB 시트', guide_edit: '가이드 편집', history: '운영 이력', sync: '동기화', settings: '설정', role_assign: '직위 반영' };
+            const titles = { home: '홈', members: '길드원', analysis: '수로 분석', suro_input: '수로 입력', bail: '보석금', penalty: '벌점', sheet: 'DB 시트', guide_edit: '가이드 편집', history: '운영 이력', records: '영구 기록', sync: '동기화', settings: '설정', role_assign: '직위 반영' };
             document.getElementById('pageTitle').innerText = titles[tab] || '';
             if (tab === 'home') window.renderHome(content);
             else if (tab === 'members') window.renderMembers(content);
@@ -1494,6 +1495,7 @@
             else if (tab === 'sync' && isAdmin()) window.renderSync(content);
             else if (tab === 'settings' && isAdmin()) { window.renderSettings(content); setTimeout(() => window._loadAdminList(), 100); }
             else if (tab === 'role_assign' && isAdmin()) window.renderRoleAssign(content);
+            else if (tab === 'records' && isAdmin()) window.renderRecords(content);
             // 모바일: 사이드바 닫기 + 탭바 업데이트
             const _sb = document.getElementById('sidebar'), _ov = document.getElementById('sidebarOverlay');
             if (window.innerWidth < 1024 && _sb) { _sb.classList.add('-translate-x-full'); _ov?.classList.add('hidden'); }
@@ -4146,6 +4148,428 @@
         };
 
         window.renderHistory = (container) => { container.innerHTML = `<div class="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden h-full flex flex-col"><div class="p-8 border-b font-bold text-gray-800 shrink-0 relative z-20 bg-white">운영 이력</div><div class="flex-1 overflow-y-auto no-scrollbar"><table class="w-full text-left text-xs whitespace-nowrap stick-head"><thead class="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase"><tr><th class="p-6">DATE</th><th class="p-6">TYPE</th><th class="p-6">NAME</th><th class="p-6">CONTENT</th></tr></thead><tbody class="divide-y divide-gray-100">${appState.history.length === 0 ? `<tr><td colspan="4" class="p-20 text-center text-gray-300 font-bold">기록 없음</td></tr>` : [...appState.history].reverse().map(l => `<tr class="hover:bg-gray-50 transition-colors h-12 leading-none font-bold"><td class="p-6 text-gray-400 font-mono text-[10px]">${l.date}</td><td class="p-6"><span class="px-2 py-1 rounded-lg bg-gray-100 text-[9px] font-bold">${l.category}</span></td><td class="p-6 text-gray-700">${l.name}</td><td class="p-6 text-gray-500">${l.content}</td></tr>`).join('')}</tbody></table></div></div>`; };
+
+        // ─── 영구 기록 (member_records) ───
+        window._recordsState = { data: [], view: 'table', filter: '', statusFilter: 'all', guildFilter: 'all', editingId: null };
+        
+        window.renderRecords = async (container) => {
+            const st = window._recordsState;
+            // 데이터 로드
+            if (st.data.length === 0) {
+                try {
+                    const { data, error } = await supaDb.from('member_records').select('*').order('join_date', { ascending: false });
+                    if (error) throw error;
+                    st.data = data || [];
+                } catch(e) { console.error(e); }
+            }
+
+            const joinSources = ['인벤', '라운지', '지인', '인게임', '재가입', '고확', '오픈톡', '길드창', '길드랭킹 검색', '복귀', '추천', '마을', '지인소개', '검색'];
+            const joinCategories = ['지인 추천', '길드 혜택/성장', '분위기/소통/체계', '홍보물/길드 이미지', '재가입/복귀', '부캐 육성', '기타'];
+            const leaveCategories = ['해당 없음(또는 미기재)', '노블/스펙 한계', '관리/운영 부실 및 비활성화', '불화/폐쇄적 친목/사고', '솔플/임시길드 탈피', '지인 동반 이동', '기타', '해당 없음'];
+            const guilds = ['뚠카롱', '뚱카롱', '밤카롱', '별카롱', '달카롱', '꿀카롱'];
+
+            container.innerHTML = `
+            <div class="h-full flex flex-col gap-3 fade-in">
+                <!-- 헤더 -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 shrink-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-3">
+                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100"><i class="fas fa-book mr-2 text-purple-500"></i>영구 기록 <span class="text-gray-400 font-mono text-[10px] ml-1">${st.data.length}건</span></h3>
+                        <div class="flex gap-1.5 ml-auto">
+                            <button onclick="window._recToggleView('table')" class="px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${st.view === 'table' ? 'bg-purple-500 text-white shadow' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}"><i class="fas fa-table mr-1"></i>목록</button>
+                            <button onclick="window._recToggleView('stats')" class="px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${st.view === 'stats' ? 'bg-purple-500 text-white shadow' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}"><i class="fas fa-chart-bar mr-1"></i>통계</button>
+                            <button onclick="window._recToggleView('add')" class="px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${st.view === 'add' ? 'bg-emerald-500 text-white shadow' : 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600'}"><i class="fas fa-plus mr-1"></i>신규 등록</button>
+                            <button onclick="window._recToggleView('import')" class="px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all ${st.view === 'import' ? 'bg-orange-500 text-white shadow' : 'bg-orange-50 dark:bg-orange-900/30 text-orange-600'}"><i class="fas fa-file-import mr-1"></i>TSV 가져오기</button>
+                        </div>
+                    </div>
+                    ${st.view === 'table' ? `
+                    <div class="flex flex-wrap gap-2">
+                        <input type="text" id="recSearch" placeholder="닉네임 검색..." value="${st.filter}" oninput="window._recordsState.filter=this.value;window._recRenderTable()" class="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs w-40 focus:ring-2 focus:ring-purple-300 outline-none">
+                        <select onchange="window._recordsState.statusFilter=this.value;window._recRenderTable()" class="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold">
+                            <option value="all" ${st.statusFilter === 'all' ? 'selected' : ''}>전체 상태</option>
+                            <option value="active" ${st.statusFilter === 'active' ? 'selected' : ''}>🟢 재직</option>
+                            <option value="left" ${st.statusFilter === 'left' ? 'selected' : ''}>🔴 탈퇴</option>
+                            <option value="kicked" ${st.statusFilter === 'kicked' ? 'selected' : ''}>⛔ 추방</option>
+                        </select>
+                        <select onchange="window._recordsState.guildFilter=this.value;window._recRenderTable()" class="px-3 py-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold">
+                            <option value="all" ${st.guildFilter === 'all' ? 'selected' : ''}>전체 길드</option>
+                            ${guilds.map(g => `<option value="${g}" ${st.guildFilter === g ? 'selected' : ''}>${g}</option>`).join('')}
+                        </select>
+                    </div>` : ''}
+                </div>
+
+                <!-- 본문 -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex-1 overflow-hidden flex flex-col min-h-0" id="recBody"></div>
+            </div>`;
+
+            if (st.view === 'table') window._recRenderTable();
+            else if (st.view === 'stats') window._recRenderStats();
+            else if (st.view === 'add') window._recRenderAddForm();
+            else if (st.view === 'import') window._recRenderImport();
+        };
+
+        window._recToggleView = (view) => {
+            window._recordsState.view = view;
+            window.renderRecords(document.getElementById('contentArea'));
+        };
+
+        // ─── 목록 뷰 ───
+        window._recRenderTable = () => {
+            const st = window._recordsState;
+            const body = document.getElementById('recBody');
+            if (!body) return;
+            
+            let filtered = [...st.data];
+            if (st.filter) filtered = filtered.filter(r => r.nickname.toLowerCase().includes(st.filter.toLowerCase()));
+            if (st.statusFilter !== 'all') filtered = filtered.filter(r => r.status === st.statusFilter);
+            if (st.guildFilter !== 'all') filtered = filtered.filter(r => r.join_guild === st.guildFilter);
+
+            const statusBadge = (s) => {
+                if (s === 'active') return '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-[9px] font-bold">재직</span>';
+                if (s === 'left') return '<span class="px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg text-[9px] font-bold">탈퇴</span>';
+                return '<span class="px-2 py-0.5 bg-gray-800 text-white rounded-lg text-[9px] font-bold">추방</span>';
+            };
+
+            body.innerHTML = `
+            <div class="p-2 border-b border-gray-100 dark:border-gray-700 text-[10px] text-gray-400 font-bold shrink-0 px-4">검색결과 ${filtered.length}건</div>
+            <div class="flex-1 overflow-y-auto overflow-x-auto no-scrollbar">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-gray-50 dark:bg-gray-900 text-[9px] font-bold text-gray-500 uppercase sticky top-0 z-10">
+                        <tr>
+                            <th class="px-3 py-2">상태</th>
+                            <th class="px-3 py-2">가입일</th>
+                            <th class="px-3 py-2">닉네임</th>
+                            <th class="px-3 py-2">직업</th>
+                            <th class="px-3 py-2">가입길드</th>
+                            <th class="px-3 py-2">이전길드</th>
+                            <th class="px-3 py-2">가입경로</th>
+                            <th class="px-3 py-2">가입 카테고리</th>
+                            <th class="px-3 py-2 max-w-[200px]">가입사유</th>
+                            <th class="px-3 py-2">탈퇴 카테고리</th>
+                            <th class="px-3 py-2 max-w-[200px]">탈퇴사유</th>
+                            <th class="px-3 py-2">비고</th>
+                            <th class="px-3 py-2">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
+                        ${filtered.length === 0 ? '<tr><td colspan="13" class="p-12 text-center text-gray-300 font-bold">데이터 없음</td></tr>' :
+                        filtered.map(r => `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors text-[11px] font-bold">
+                            <td class="px-3 py-2">${statusBadge(r.status)}</td>
+                            <td class="px-3 py-2 text-gray-400 font-mono text-[10px]">${r.join_date || '-'}</td>
+                            <td class="px-3 py-2 text-gray-800 dark:text-gray-100">${r.nickname}</td>
+                            <td class="px-3 py-2 text-gray-500">${r.job_class || '-'}</td>
+                            <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded-md text-[9px] ${r.join_guild === '뚠카롱' ? 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400' : 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'}">${r.join_guild || '-'}</span></td>
+                            <td class="px-3 py-2 text-gray-400">${r.prev_guild || '-'}</td>
+                            <td class="px-3 py-2 text-gray-500">${r.join_source || '-'}</td>
+                            <td class="px-3 py-2"><span class="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-md text-[9px]">${r.join_category || '-'}</span></td>
+                            <td class="px-3 py-2 text-gray-500 max-w-[200px] truncate" title="${(r.join_reason || '').replace(/"/g, '&quot;')}">${r.join_reason || '-'}</td>
+                            <td class="px-3 py-2"><span class="px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-md text-[9px]">${r.leave_category || '-'}</span></td>
+                            <td class="px-3 py-2 text-gray-500 max-w-[200px] truncate" title="${(r.leave_reason || '').replace(/"/g, '&quot;')}">${r.leave_reason || '-'}</td>
+                            <td class="px-3 py-2 text-gray-400 text-[10px]">${r.referrer || '-'}</td>
+                            <td class="px-3 py-2">
+                                <div class="flex gap-1">
+                                    <button onclick="window._recEdit(${r.id})" class="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-500 hover:bg-blue-100 text-[10px]"><i class="fas fa-pen"></i></button>
+                                    <button onclick="window._recDelete(${r.id})" class="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-400 hover:bg-red-100 text-[10px]"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        };
+
+        // ─── 신규 등록 / 수정 폼 ───
+        window._recRenderAddForm = (editData) => {
+            const body = document.getElementById('recBody');
+            if (!body) return;
+            const r = editData || { join_date: new Date().toISOString().split('T')[0], nickname: '', job_class: '', suro_score: '', join_guild: '뚠카롱', prev_guild: '', join_source: '', join_category: '', join_reason: '', leave_category: '', leave_reason: '', referrer: '', status: 'active' };
+            const isEdit = !!editData;
+            
+            const jobList = ['히어로','팔라딘','다크나이트','아크메이지(불,독)','아크메이지(썬,콜)','비숍','보우마스터','신궁','패스파인더','나이트로드','섀도어','듀얼블레이드','바이퍼','캡틴','캐논슈터','미하일','소울마스터','플레임위자드','윈드브레이커','나이트워커','스트라이커','아란','에반','루미너스','메르세데스','팬텀','은월','카이저','엔젤릭버스터','카데나','아델','일리움','아크','라라','칼리','제로','키네시스','제논','데몬슬레이어','데몬어벤져','블래스터','배틀메이지','와일드헌터','메카닉','제논','나로','렌','불독','썬콜','보마','패파','듀블','엔버','나워','윈브','섀도어','카인','소마','히어로','비숍'];
+            const joinSources = ['인벤', '라운지', '지인', '인게임', '재가입', '고확', '오픈톡', '길드창', '복귀', '추천', '마을', '검색', '디코', '지인소개'];
+            const joinCategories = ['지인 추천', '길드 혜택/성장', '분위기/소통/체계', '홍보물/길드 이미지', '재가입/복귀', '부캐 육성', '기타'];
+            const leaveCategories = ['해당 없음(또는 미기재)', '노블/스펙 한계', '관리/운영 부실 및 비활성화', '불화/폐쇄적 친목/사고', '솔플/임시길드 탈피', '지인 동반 이동', '기타', '해당 없음'];
+            const guilds = ['뚠카롱', '뚱카롱', '밤카롱', '별카롱', '달카롱', '꿀카롱'];
+
+            const sel = (name, val, opts) => `<select name="${name}" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-purple-300"><option value="">선택...</option>${opts.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+            const inp = (name, val, ph, type='text') => `<input type="${type}" name="${name}" value="${val || ''}" placeholder="${ph}" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-purple-300">`;
+            const ta = (name, val, ph) => `<textarea name="${name}" placeholder="${ph}" rows="2" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-purple-300 resize-none">${val || ''}</textarea>`;
+
+            body.innerHTML = `
+            <div class="p-5 overflow-y-auto flex-1">
+                <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4"><i class="fas ${isEdit ? 'fa-pen' : 'fa-plus'} mr-2 text-purple-500"></i>${isEdit ? '기록 수정' : '신규 가입 등록'}</h4>
+                <form id="recForm" class="space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">가입일자 *</label>${inp('join_date', r.join_date, '', 'date')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">닉네임 *</label>${inp('nickname', r.nickname, '닉네임')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">직업</label>${inp('job_class', r.job_class, '직업')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">수로점수</label>${inp('suro_score', r.suro_score, '수로점수')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">가입길드 *</label>${sel('join_guild', r.join_guild, guilds)}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">이전길드</label>${inp('prev_guild', r.prev_guild, '이전길드')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">가입경로</label>${sel('join_source', r.join_source, joinSources)}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">가입 카테고리</label>${sel('join_category', r.join_category, joinCategories)}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">상태</label>${sel('status', r.status, ['active', 'left', 'kicked'])}</div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">가입사유 (원문)</label>${ta('join_reason', r.join_reason, '가입 사유')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">탈퇴사유 (원문)</label>${ta('leave_reason', r.leave_reason, '탈퇴 사유')}</div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">탈퇴 카테고리</label>${sel('leave_category', r.leave_category, leaveCategories)}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">탈퇴일자</label>${inp('leave_date', r.leave_date, '', 'date')}</div>
+                        <div><label class="text-[10px] text-gray-500 font-bold block mb-1">비고 / 소개자</label>${inp('referrer', r.referrer, '소개자 등')}</div>
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" onclick="window._recSaveForm(${isEdit ? r.id : 'null'})" class="px-6 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-bold shadow hover:bg-purple-600 transition-all"><i class="fas fa-save mr-1"></i>${isEdit ? '수정 저장' : '등록'}</button>
+                        <button type="button" onclick="window._recToggleView('table')" class="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold hover:bg-gray-200 transition-all">취소</button>
+                    </div>
+                </form>
+            </div>`;
+        };
+
+        window._recSaveForm = async (editId) => {
+            const form = document.getElementById('recForm');
+            if (!form) return;
+            const fd = new FormData(form);
+            const rec = {};
+            for (const [k, v] of fd.entries()) rec[k] = v.trim();
+            if (!rec.nickname) return window.showMsg('닉네임을 입력해주세요', 'error');
+            if (!rec.join_date) return window.showMsg('가입일자를 입력해주세요', 'error');
+            if (rec.leave_date === '') delete rec.leave_date;
+
+            try {
+                if (editId) {
+                    const { error } = await supaDb.from('member_records').update(rec).eq('id', editId);
+                    if (error) throw error;
+                    const idx = window._recordsState.data.findIndex(r => r.id === editId);
+                    if (idx >= 0) window._recordsState.data[idx] = { ...window._recordsState.data[idx], ...rec };
+                    window.showMsg('수정 완료!', 'success');
+                } else {
+                    const { data, error } = await supaDb.from('member_records').insert(rec).select();
+                    if (error) throw error;
+                    if (data?.[0]) window._recordsState.data.unshift(data[0]);
+                    window.showMsg('등록 완료!', 'success');
+                }
+                window._recToggleView('table');
+            } catch(e) {
+                window.showMsg('저장 실패: ' + e.message, 'error');
+            }
+        };
+
+        window._recEdit = (id) => {
+            const rec = window._recordsState.data.find(r => r.id === id);
+            if (!rec) return;
+            window._recordsState.view = 'add';
+            window.renderRecords(document.getElementById('contentArea'));
+            setTimeout(() => window._recRenderAddForm(rec), 50);
+        };
+
+        window._recDelete = async (id) => {
+            if (!confirm('이 기록을 삭제하시겠습니까? 영구 삭제됩니다.')) return;
+            try {
+                const { error } = await supaDb.from('member_records').delete().eq('id', id);
+                if (error) throw error;
+                window._recordsState.data = window._recordsState.data.filter(r => r.id !== id);
+                window._recRenderTable();
+                window.showMsg('삭제 완료', 'success');
+            } catch(e) { window.showMsg('삭제 실패: ' + e.message, 'error'); }
+        };
+
+        // ─── 통계 뷰 ───
+        window._recRenderStats = () => {
+            const body = document.getElementById('recBody');
+            if (!body) return;
+            const data = window._recordsState.data;
+            if (data.length === 0) { body.innerHTML = '<div class="p-12 text-center text-gray-300 font-bold">데이터 없음</div>'; return; }
+
+            // 가입경로 통계
+            const sourceCounts = {};
+            data.forEach(r => { const s = r.join_source || '기타'; sourceCounts[s] = (sourceCounts[s] || 0) + 1; });
+            const sourceArr = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+            const sourceMax = sourceArr[0]?.[1] || 1;
+
+            // 가입카테고리 통계
+            const catCounts = {};
+            data.forEach(r => { const c = r.join_category || '기타'; catCounts[c] = (catCounts[c] || 0) + 1; });
+            const catArr = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+            const catMax = catArr[0]?.[1] || 1;
+
+            // 탈퇴카테고리 통계
+            const leaveCounts = {};
+            data.filter(r => r.leave_category && r.leave_category !== '해당 없음(또는 미기재)' && r.leave_category !== '해당 없음').forEach(r => { leaveCounts[r.leave_category] = (leaveCounts[r.leave_category] || 0) + 1; });
+            const leaveArr = Object.entries(leaveCounts).sort((a, b) => b[1] - a[1]);
+            const leaveMax = leaveArr[0]?.[1] || 1;
+
+            // 월별 가입 추이
+            const monthCounts = {};
+            data.forEach(r => { if (r.join_date) { const m = r.join_date.substring(0, 7); monthCounts[m] = (monthCounts[m] || 0) + 1; } });
+            const monthArr = Object.entries(monthCounts).sort((a, b) => a[0].localeCompare(b[0]));
+            const monthMax = Math.max(...monthArr.map(m => m[1]), 1);
+
+            // 길드별 분포
+            const guildCounts = {};
+            data.forEach(r => { const g = r.join_guild || '기타'; guildCounts[g] = (guildCounts[g] || 0) + 1; });
+
+            const activeCount = data.filter(r => r.status === 'active').length;
+            const leftCount = data.filter(r => r.status === 'left').length;
+            const kickedCount = data.filter(r => r.status === 'kicked').length;
+
+            const barChart = (arr, max, colorFn) => arr.map(([label, count]) => `
+                <div class="flex items-center gap-2 mb-1.5">
+                    <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300 w-32 text-right truncate" title="${label}">${label}</span>
+                    <div class="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-5 overflow-hidden">
+                        <div class="h-full rounded-full flex items-center px-2 transition-all" style="width:${Math.max(count/max*100, 8)}%;background:${colorFn(label)}">
+                            <span class="text-[9px] font-bold text-white">${count}</span>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            body.innerHTML = `
+            <div class="p-5 overflow-y-auto flex-1 space-y-6">
+                <!-- 요약 카드 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl text-center">
+                        <p class="text-2xl font-black text-purple-600">${data.length}</p>
+                        <p class="text-[10px] text-gray-500 font-bold">📋 전체 기록</p>
+                    </div>
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-xl text-center">
+                        <p class="text-2xl font-black text-emerald-600">${activeCount}</p>
+                        <p class="text-[10px] text-gray-500 font-bold">🟢 재직</p>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl text-center">
+                        <p class="text-2xl font-black text-red-500">${leftCount}</p>
+                        <p class="text-[10px] text-gray-500 font-bold">🔴 탈퇴</p>
+                    </div>
+                    <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-xl text-center">
+                        <p class="text-2xl font-black text-gray-600">${kickedCount}</p>
+                        <p class="text-[10px] text-gray-500 font-bold">⛔ 추방</p>
+                    </div>
+                </div>
+                <!-- 길드별 -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    ${Object.entries(guildCounts).map(([g, c]) => `<div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-3 text-center"><span class="text-lg font-black text-pink-500">${c}</span><p class="text-[10px] text-gray-400 font-bold">${g}</p></div>`).join('')}
+                </div>
+
+                <!-- 가입경로 분석 -->
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-gray-800 dark:text-gray-100 mb-3"><i class="fas fa-sign-in-alt mr-2 text-blue-500"></i>가입경로 분석</h4>
+                    ${barChart(sourceArr, sourceMax, () => '#6366f1')}
+                </div>
+
+                <!-- 가입 카테고리 -->
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-gray-800 dark:text-gray-100 mb-3"><i class="fas fa-tags mr-2 text-emerald-500"></i>가입 카테고리</h4>
+                    ${barChart(catArr, catMax, () => '#10b981')}
+                </div>
+
+                <!-- 탈퇴 사유 -->
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-gray-800 dark:text-gray-100 mb-3"><i class="fas fa-sign-out-alt mr-2 text-red-500"></i>탈퇴사유 분석 <span class="text-gray-400 text-[9px]">(해당없음 제외)</span></h4>
+                    ${leaveArr.length === 0 ? '<p class="text-gray-300 text-xs">데이터 없음</p>' : barChart(leaveArr, leaveMax, () => '#ef4444')}
+                </div>
+
+                <!-- 월별 추이 -->
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-4">
+                    <h4 class="text-xs font-bold text-gray-800 dark:text-gray-100 mb-3"><i class="fas fa-chart-line mr-2 text-purple-500"></i>월별 가입 추이</h4>
+                    <div class="flex items-end gap-1 h-32">
+                        ${monthArr.map(([m, c]) => `
+                            <div class="flex-1 flex flex-col items-center justify-end h-full">
+                                <span class="text-[8px] font-bold text-gray-600 dark:text-gray-300 mb-1">${c}</span>
+                                <div class="w-full bg-purple-400 rounded-t-md transition-all" style="height:${Math.max(c/monthMax*100, 4)}%"></div>
+                                <span class="text-[7px] text-gray-400 mt-1 -rotate-45 origin-top-left">${m.substring(2)}</span>
+                            </div>`).join('')}
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        // ─── TSV 가져오기 ───
+        window._recRenderImport = () => {
+            const body = document.getElementById('recBody');
+            if (!body) return;
+            body.innerHTML = `
+            <div class="p-5 overflow-y-auto flex-1">
+                <h4 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2"><i class="fas fa-file-import mr-2 text-orange-500"></i>TSV 데이터 가져오기</h4>
+                <p class="text-[11px] text-gray-500 mb-3">기존 시트에서 헤더 포함 데이터를 복사해서 붙여넣으세요.<br>컬럼 순서: 가입일자, 닉네임, 직업, 수로점수, 가입길드, 이전길드, 가입경로, 가입카테고리, 가입사유, 탈퇴카테고리, 탈퇴사유, 비고</p>
+                <textarea id="tsvInput" rows="12" placeholder="여기에 TSV 데이터를 붙여넣으세요..." class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-xs font-mono outline-none focus:ring-2 focus:ring-orange-300 resize-none mb-3"></textarea>
+                <div class="flex gap-2 items-center">
+                    <button onclick="window._recParseTSV()" class="px-6 py-2.5 bg-orange-500 text-white rounded-xl text-xs font-bold shadow hover:bg-orange-600 transition-all"><i class="fas fa-upload mr-1"></i>파싱 & 미리보기</button>
+                    <span id="tsvStatus" class="text-[11px] text-gray-400 font-bold"></span>
+                </div>
+                <div id="tsvPreview" class="mt-4"></div>
+            </div>`;
+        };
+
+        window._recParseTSV = () => {
+            const raw = document.getElementById('tsvInput')?.value?.trim();
+            if (!raw) return window.showMsg('데이터를 붙여넣어주세요', 'error');
+
+            const lines = raw.split('\n');
+            const header = lines[0].split('\t');
+            const records = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split('\t');
+                if (cols.length < 2 || !cols[1]?.trim()) continue;
+
+                records.push({
+                    join_date: cols[0]?.trim() || null,
+                    nickname: cols[1]?.trim(),
+                    job_class: cols[2]?.trim() || '',
+                    suro_score: cols[3]?.trim() || '',
+                    join_guild: cols[4]?.trim() || '',
+                    prev_guild: cols[5]?.trim() || '',
+                    join_source: cols[6]?.trim() || '',
+                    join_category: cols[7]?.trim() || '',
+                    join_reason: (cols[8] || '').trim().replace(/^"|"$/g, ''),
+                    leave_category: cols[9]?.trim() || '',
+                    leave_reason: (cols[10] || '').trim().replace(/^"|"$/g, ''),
+                    referrer: cols[11]?.trim() || '',
+                    status: 'active'
+                });
+            }
+
+            document.getElementById('tsvStatus').textContent = `${records.length}건 파싱됨`;
+
+            const preview = document.getElementById('tsvPreview');
+            preview.innerHTML = `
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-3 mb-3 max-h-[300px] overflow-y-auto">
+                    <table class="w-full text-[10px]">
+                        <thead><tr class="text-gray-500 font-bold"><th class="p-1 text-left">일자</th><th class="p-1 text-left">닉네임</th><th class="p-1">직업</th><th class="p-1">가입길드</th><th class="p-1">경로</th><th class="p-1">상태</th></tr></thead>
+                        <tbody>${records.slice(0, 30).map(r => `<tr class="border-t border-gray-200 dark:border-gray-600"><td class="p-1 font-mono">${r.join_date || '-'}</td><td class="p-1 font-bold">${r.nickname}</td><td class="p-1">${r.job_class}</td><td class="p-1">${r.join_guild}</td><td class="p-1">${r.join_source}</td><td class="p-1">active</td></tr>`).join('')}
+                        ${records.length > 30 ? `<tr><td colspan="6" class="p-2 text-center text-gray-400">... 외 ${records.length - 30}건</td></tr>` : ''}
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="window._recImportConfirm()" id="tsvImportBtn" class="px-6 py-2.5 bg-emerald-500 text-white rounded-xl text-xs font-bold shadow hover:bg-emerald-600 transition-all"><i class="fas fa-database mr-1"></i>${records.length}건 DB에 저장</button>
+            `;
+            window._tsvParsed = records;
+        };
+
+        window._recImportConfirm = async () => {
+            const records = window._tsvParsed;
+            if (!records || records.length === 0) return;
+            const btn = document.getElementById('tsvImportBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>저장 중...'; }
+
+            try {
+                // 50건씩 배치 insert
+                let done = 0;
+                for (let i = 0; i < records.length; i += 50) {
+                    const batch = records.slice(i, i + 50);
+                    const { error } = await supaDb.from('member_records').insert(batch);
+                    if (error) throw error;
+                    done += batch.length;
+                    if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>${done}/${records.length} 저장 중...`;
+                }
+                window._recordsState.data = []; // 다음 로드 시 새로 fetch
+                window.showMsg(`${records.length}건 저장 완료!`, 'success');
+                window._recToggleView('table');
+            } catch(e) {
+                window.showMsg('저장 실패: ' + e.message, 'error');
+                if (btn) { btn.disabled = false; btn.innerHTML = '재시도'; }
+            }
+        };
         window.renderSettings = (container) => {
             const cfg = SITE_CONFIG || {};
             const guilds = cfg.guilds || appState.guilds;
