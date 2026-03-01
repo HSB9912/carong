@@ -727,13 +727,17 @@
 
         // ===== 다크모드 =====
         window.toggleDark = () => {
+            document.documentElement.classList.toggle('dark');
             document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
+            const isDark = document.documentElement.classList.contains('dark');
             localStorage.setItem('adminDarkMode', isDark ? '1' : '0');
             const icon = document.querySelector('#darkToggle i');
             if (icon) icon.className = isDark ? 'fas fa-sun text-xs lg:text-base text-amber-400' : 'fas fa-adjust text-xs lg:text-base';
+            // 길드원 테이블 행 색상 재적용
+            if (appState.activeTab === 'members') window.updateMemberTable();
         };
         if (localStorage.getItem('adminDarkMode') === '1') {
+            document.documentElement.classList.add('dark');
             document.body.classList.add('dark');
             setTimeout(() => {
                 const icon = document.querySelector('#darkToggle i');
@@ -1063,8 +1067,8 @@
                         id: p.id, date: p.date, name: p.name, points: p.points, reason: p.reason || ''
                     }));
                 } else {
-                    appState.penaltyHistory = penalties.map(p => ({
-                        name: '******', points: p.points, reason: '비공개'
+                    appState.penaltyHistory = penalties.map((p, idx) => ({
+                        name: p.name, points: p.points, reason: '비공개', date: '-'
                     }));
                 }
 
@@ -1442,23 +1446,32 @@
             window.showLoading(true);
             window.setLoadProgress(10, '직위 업데이트 준비 중...');
             
-            const allMembers = appState.members.map(m => {
-                const change = changes.find(c => c.name === m.name);
-                return {
-                    name: m.name, guild: m.guild,
-                    role: change ? change.to : m.role,
-                    class: m.class || '', isMain: m.isMain || false,
-                    mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
-                };
-            });
-            
-            window.setLoadProgress(30, '서버에 전송 중...');
-            const success = await window.sendAction('save_members', { members: allMembers });
-            
-            window.setLoadProgress(80, '데이터 갱신 중...');
-            if(success) {
+            try {
+                let done = 0;
+                const historyEntries = [];
+                for (const change of changes) {
+                    const member = appState.members.find(m => m.name === change.name);
+                    if (!member) continue;
+                    const { error } = await supaDb.from('members').update({ role: change.to }).eq('id', member.id);
+                    if (error) throw error;
+                    done++;
+                    window.setLoadProgress(10 + Math.round(70 * done / changes.length), `${done}/${changes.length} 직위 변경 중...`);
+                    historyEntries.push({
+                        date: new Date().toISOString().split('T')[0],
+                        category: '직위변경',
+                        name: change.name,
+                        content: `${change.from} → ${change.to} (${member.guild})`
+                    });
+                }
+                // 운영 이력 일괄 등록
+                if (historyEntries.length > 0) {
+                    await supaDb.from('operation_history').insert(historyEntries);
+                }
+                window.setLoadProgress(90, '데이터 갱신 중...');
                 window.showMsg(changes.length + '명의 직위가 업데이트되었습니다!', 'success');
                 await window.fetchMembers();
+            } catch(e) {
+                window.showMsg('직위 변경 실패: ' + (e.message || e), 'error');
             }
             window.showLoading(false);
             window._pendingRoleChanges = null;
@@ -2534,16 +2547,25 @@
                 
                 const targetRole = mainMem ? mainMem.role : (m.isMain ? m.role : '');
                 
-                // 크로칸슈 이상만 좌측 테두리 표시
+                // 크로칸슈 이상만 좌측 테두리 + 배경 (다크모드 대응)
+                const isDark = document.documentElement.classList.contains('dark');
                 let rowStyle = "";
                 if (targetRole === '크라운') {
-                    rowStyle = "background:linear-gradient(to right,#FFF9E6,#FFF3CC);border-left:3px solid #F0C050;";
+                    rowStyle = isDark 
+                        ? "background:rgba(234,179,8,0.1);border-left:3px solid #F0C050;" 
+                        : "background:linear-gradient(to right,#FFF9E6,#FFF3CC);border-left:3px solid #F0C050;";
                 } else if (targetRole === '파르페') {
-                    rowStyle = "background:linear-gradient(to right,#EBF0FF,#E4EAFF);border-left:3px solid #8EA8F0;";
+                    rowStyle = isDark 
+                        ? "background:rgba(99,102,241,0.1);border-left:3px solid #8EA8F0;" 
+                        : "background:linear-gradient(to right,#EBF0FF,#E4EAFF);border-left:3px solid #8EA8F0;";
                 } else if (targetRole === '티라미슈') {
-                    rowStyle = "background:linear-gradient(to right,#EBF0FF,#E8EDFF);border-left:3px solid #A0B4E8;";
+                    rowStyle = isDark 
+                        ? "background:rgba(99,102,241,0.08);border-left:3px solid #A0B4E8;" 
+                        : "background:linear-gradient(to right,#EBF0FF,#E8EDFF);border-left:3px solid #A0B4E8;";
                 } else if (targetRole === '크로칸슈') {
-                    rowStyle = "background:linear-gradient(to right,#EEFFEE,#E5FAE5);border-left:3px solid #92D050;";
+                    rowStyle = isDark 
+                        ? "background:rgba(34,197,94,0.1);border-left:3px solid #92D050;" 
+                        : "background:linear-gradient(to right,#EEFFEE,#E5FAE5);border-left:3px solid #92D050;";
                 }
 
                 const pending = appState.pendingUpdates[m.id];
