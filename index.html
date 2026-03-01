@@ -4157,9 +4157,15 @@
             // 데이터 로드
             if (st.data.length === 0) {
                 try {
-                    const { data, error } = await supaDb.from('member_records').select('*').order('join_date', { ascending: false });
-                    if (error) throw error;
-                    st.data = data || [];
+                    let allRec = [], rFrom = 0;
+                    while (true) {
+                        const { data, error } = await supaDb.from('member_records').select('*').order('join_date', { ascending: false }).range(rFrom, rFrom + 999);
+                        if (error) throw error;
+                        allRec = allRec.concat(data || []);
+                        if (!data || data.length < 1000) break;
+                        rFrom += 1000;
+                    }
+                    st.data = allRec;
                 } catch(e) { console.error(e); }
             }
 
@@ -4384,12 +4390,24 @@
             if (!apiKey) return window.showMsg('설정에서 Nexon API Key를 먼저 입력해주세요', 'error');
 
             // 현재 길드원 목록 가져오기
-            const { data: currentMembers } = await supaDb.from('members').select('name, guild');
-            const currentNames = new Set((currentMembers || []).map(m => m.name));
+            // 현재 길드원 목록 가져오기 (1000개 제한 방지)
+            let currentMembers = [], mFrom = 0;
+            while (true) {
+                const { data: batch } = await supaDb.from('members').select('name, guild').range(mFrom, mFrom + 999);
+                currentMembers = currentMembers.concat(batch || []);
+                if (!batch || batch.length < 1000) break;
+                mFrom += 1000;
+            }
+            const currentNames = new Set(currentMembers.map(m => m.name));
 
-            // active인데 현재 멤버에 없는 사람
+            // active인데 현재 멤버에 없는 사람 (최근 7일 내 확인된 건 제외)
             const activeRecords = st.data.filter(r => r.status === 'active');
-            const missingRecords = activeRecords.filter(r => !currentNames.has(r.nickname));
+            const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+            const missingRecords = activeRecords.filter(r => {
+                if (currentNames.has(r.nickname)) return false;
+                if (r.last_verified && r.last_verified >= sevenDaysAgo) return false;
+                return true;
+            });
 
             if (missingRecords.length === 0) {
                 window.showMsg('모든 재직자가 현재 길드원 목록에 있습니다! ✅', 'success');
@@ -4490,11 +4508,15 @@
                                 <input type="text" class="nick-input px-2 py-1 bg-white dark:bg-gray-700 border border-amber-300 dark:border-amber-700 rounded-lg text-[10px] font-bold outline-none w-24 focus:ring-1 focus:ring-amber-400" placeholder="새 닉네임">
                             </div>`;
                     } else if (ourGuilds.has(info.guild)) {
-                        // 우리 길드에 있음 → 닉변해서 다른 이름으로 있을 수 있지만, 이건 현재 이름이 우리 길드
-                        // 사실 이 케이스는 거의 없음 (이미 currentNames에 있을 것)
-                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-[9px] font-bold">✅ 재직</span>';
+                        // 우리 길드에 있음 → 자동 verified 처리
+                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-[9px] font-bold">✅ 재직 확인</span>';
                         apiCell.innerHTML = `<span class="text-emerald-600">${info.guild} (Lv.${info.level} ${info.class})</span>`;
                         actionCell.innerHTML = `<select class="sync-action px-2 py-1 bg-gray-50 dark:bg-gray-700 border rounded-lg text-[10px] font-bold outline-none"><option value="skip" selected>⏭ 유지</option><option value="leave">🔴 탈퇴</option></select><input type="text" class="nick-input hidden">`;
+                        // 바로 verified 마킹
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        supaDb.from('member_records').update({ last_verified: todayStr }).eq('id', r.id);
+                        const localRec = window._recordsState.data.find(x => x.id === r.id);
+                        if (localRec) localRec.last_verified = todayStr;
                     } else if (info.guild) {
                         // 다른 길드에 있음 → 탈퇴 확정
                         statusCell.innerHTML = '<span class="px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg text-[9px] font-bold">🔴 탈퇴 확정</span>';
@@ -4551,7 +4573,13 @@
                     if (!actionSel) { skipCount++; continue; }
                     const action = actionSel.value;
                     
-                    if (action === 'skip') { skipCount++; continue; }
+                    if (action === 'skip') { 
+                        // 유지 → last_verified 마킹 (7일간 재조회 안 됨)
+                        await supaDb.from('member_records').update({ last_verified: today }).eq('id', id);
+                        const rec = window._recordsState.data.find(r => r.id === id);
+                        if (rec) rec.last_verified = today;
+                        skipCount++; continue; 
+                    }
 
                     if (action === 'leave') {
                         // 탈퇴 API 결과에서 이동길드 추출
