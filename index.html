@@ -304,24 +304,21 @@
             <div><h1 class="text-lg font-bold text-gray-800 tracking-tight">뚠카롱 길드 현황</h1><p id="publicViewLabel" class="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">PUBLIC VIEW</p></div>
             <button id="closeSidebar" class="lg:hidden ml-auto text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <nav class="p-4 space-y-2 flex-1 overflow-y-auto no-scrollbar">
-            <p class="px-4 pt-2 pb-2 text-[9px] font-bold text-gray-300 uppercase tracking-widest">길드 안내</p>
-            <button onclick="router('guide_intro')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="guide_intro"><i class="fas fa-heart w-5 text-center text-xs"></i><span>길드 소개</span></button>
-            <button onclick="router('guide_ranks')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="guide_ranks"><i class="fas fa-medal w-5 text-center text-xs"></i><span>직위 & 부캐</span></button>
-            <button onclick="router('guide_links')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="guide_links"><i class="fas fa-link w-5 text-center text-xs"></i><span>링크 모음</span></button>
-            <p class="px-4 pt-4 pb-2 text-[9px] font-bold text-gray-300 uppercase tracking-widest">길드 데이터</p>
-            <button onclick="router('dashboard')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="dashboard"><i class="fas fa-columns w-5 text-center"></i><span>대시보드</span></button>
-            <button onclick="router('members')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="members"><i class="fas fa-users w-5 text-center"></i><span>길드원 목록</span></button>
-            <button onclick="router('analysis')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="analysis"><i class="fas fa-chart-line w-5 text-center"></i><span>수로 점수 분석</span></button>
-            <button onclick="router('bail')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="bail"><i class="fas fa-gem w-5 text-center"></i><span>보석금 현황</span></button>
-            <button onclick="router('penalty')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="penalty"><i class="fas fa-exclamation-triangle w-5 text-center"></i><span>벌점 현황</span></button>
+        <nav class="p-4 space-y-1 flex-1 overflow-y-auto no-scrollbar">
+            <p class="px-4 pt-2 pb-2 text-[9px] font-bold text-gray-300 uppercase tracking-widest">메뉴</p>
+            <button onclick="router('home')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="home"><i class="fas fa-home w-5 text-center text-xs"></i><span>홈</span></button>
+            <button onclick="router('members')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="members"><i class="fas fa-users w-5 text-center text-xs"></i><span>길드원</span></button>
+            <button onclick="router('analysis')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="analysis"><i class="fas fa-chart-line w-5 text-center text-xs"></i><span>수로 분석</span></button>
+            <button onclick="router('bail')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="bail"><i class="fas fa-gem w-5 text-center text-xs"></i><span>보석금</span></button>
+            <button onclick="router('penalty')" class="nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="penalty"><i class="fas fa-exclamation-triangle w-5 text-center text-xs"></i><span>벌점</span></button>
             <p class="admin-only hidden px-4 pt-4 pb-2 text-[9px] font-bold text-gray-300 uppercase tracking-widest">관리자</p>
-            <button onclick="router('suro_input')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="suro_input"><i class="fas fa-keyboard w-5 text-center"></i><span>수로 점수 입력</span></button>
-            <button onclick="router('sheet')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="sheet"><i class="fas fa-database w-5 text-center"></i><span>DB 시트 뷰어</span></button>
-            <button onclick="router('guide_edit')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="guide_edit"><i class="fas fa-edit w-5 text-center"></i><span>가이드 편집</span></button>
-            <button onclick="router('history')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="history"><i class="fas fa-history w-5 text-center"></i><span>운영 이력</span></button>
-            <button onclick="router('sync')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="sync"><i class="fas fa-sync w-5 text-center"></i><span>길드원 동기화</span></button>
-            <button onclick="router('settings')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold" data-target="settings"><i class="fas fa-cog w-5 text-center"></i><span>설정</span></button>
+            <button onclick="router('suro_input')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="suro_input"><i class="fas fa-keyboard w-5 text-center text-xs"></i><span>수로 입력</span></button>
+            <button onclick="router('role_assign')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="role_assign"><i class="fas fa-medal w-5 text-center text-xs"></i><span>직위 반영</span></button>
+            <button onclick="router('guide_edit')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="guide_edit"><i class="fas fa-edit w-5 text-center text-xs"></i><span>가이드 편집</span></button>
+            <button onclick="router('sync')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="sync"><i class="fas fa-sync w-5 text-center text-xs"></i><span>동기화</span></button>
+            <button onclick="router('sheet')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="sheet"><i class="fas fa-database w-5 text-center text-xs"></i><span>DB 시트</span></button>
+            <button onclick="router('history')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="history"><i class="fas fa-history w-5 text-center text-xs"></i><span>운영 이력</span></button>
+            <button onclick="router('settings')" class="admin-only hidden nav-item w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 text-gray-600 hover:bg-pink-50 font-bold text-sm" data-target="settings"><i class="fas fa-cog w-5 text-center text-xs"></i><span>설정</span></button>
         </nav>
         <div class="p-4 border-t border-gray-100 bg-gray-50/50 text-center font-bold"><p class="text-[10px] text-green-500 uppercase tracking-widest"><i class="fas fa-cloud mr-1 animate-pulse"></i> Supabase Connected</p></div>
     </aside>
@@ -351,13 +348,9 @@
     <!-- 모바일 하단 탭바 -->
     <nav id="mobileTabBar" class="lg:hidden fixed bottom-0 left-0 right-0 z-[999] bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] safe-bottom">
         <div class="flex items-center justify-around h-14 px-1">
-            <button onclick="window._mobileTab('guide_intro')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="guide_intro">
-                <i class="fas fa-heart text-sm"></i>
-                <span class="text-[9px] font-bold">소개</span>
-            </button>
-            <button onclick="window._mobileTab('dashboard')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="dashboard">
-                <i class="fas fa-columns text-sm"></i>
-                <span class="text-[9px] font-bold">현황</span>
+            <button onclick="window._mobileTab('home')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="home">
+                <i class="fas fa-home text-sm"></i>
+                <span class="text-[9px] font-bold">홈</span>
             </button>
             <button onclick="window._mobileTab('members')" class="mobile-tab flex flex-col items-center justify-center gap-0.5 flex-1 h-full" data-tab="members">
                 <i class="fas fa-users text-sm"></i>
@@ -598,7 +591,7 @@
         let analysisChartInstance = null;
 
         const appState = {
-            activeTab: 'guide_intro',
+            activeTab: 'home',
             guilds: [
                 { id: 'ddun', name: '뚠카롱', type: '메인 1기', color: '#f472b6', icon: 'fa-crown', max: 200 },
                 { id: 'ddung', name: '뚱카롱', type: '메인 2기', color: '#fb7185', icon: 'fa-heart', max: 200 },
@@ -1364,9 +1357,9 @@
             const content = document.getElementById('contentArea'); if(!content) return;
             content.innerHTML = '';
             document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.target === tab));
-            const titles = { dashboard: '길드 현황판', members: '길드원 목록', analysis: '수로 분석', suro_input: '수로 점수 입력', bail: '보석금 현황', penalty: '벌점 현황', sheet: 'DB 시트 뷰어', guide_edit: '가이드 편집', history: '운영 이력', sync: '길드원 동기화', settings: '설정', guide_intro: '길드 소개', guide_ranks: '직위 & 부캐', guide_links: '링크 모음' };
+            const titles = { home: '홈', members: '길드원', analysis: '수로 분석', suro_input: '수로 입력', bail: '보석금', penalty: '벌점', sheet: 'DB 시트', guide_edit: '가이드 편집', history: '운영 이력', sync: '동기화', settings: '설정', role_assign: '직위 반영' };
             document.getElementById('pageTitle').innerText = titles[tab] || '';
-            if (tab === 'dashboard') window.renderDashboard(content);
+            if (tab === 'home') window.renderHome(content);
             else if (tab === 'members') window.renderMembers(content);
             else if (tab === 'analysis') window.renderAnalysis(content, appState.analysisGuild);
             else if (tab === 'suro_input' && isAdmin()) window.renderSuroInput(content);
@@ -1377,7 +1370,7 @@
             else if (tab === 'history' && isAdmin()) window.renderHistory(content);
             else if (tab === 'sync' && isAdmin()) window.renderSync(content);
             else if (tab === 'settings' && isAdmin()) { window.renderSettings(content); setTimeout(() => window._loadAdminList(), 100); }
-            else if (tab.startsWith('guide_')) window.renderGuide(content, tab.replace('guide_',''));
+            else if (tab === 'role_assign' && isAdmin()) window.renderRoleAssign(content);
             // 모바일: 사이드바 닫기 + 탭바 업데이트
             const _sb = document.getElementById('sidebar'), _ov = document.getElementById('sidebarOverlay');
             if (window.innerWidth < 1024 && _sb) { _sb.classList.add('-translate-x-full'); _ov?.classList.add('hidden'); }
@@ -1944,8 +1937,8 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0 pb-3 bg-gray-50 z-20">
                     <div class="flex gap-2 overflow-x-auto no-scrollbar shrink-0 w-full sm:w-auto items-center">
                         ${analysisGuildsOptions.map(gNameOption => `<button onclick="window.renderAnalysis(document.getElementById('contentArea'), '${gNameOption}')" class="px-6 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${gNameOption === gName ? 'bg-pink-500 text-white shadow-lg' : 'bg-white text-gray-500 border border-gray-100'}">${gNameOption}</button>`).join('')}
-                        ${gName === '뚠카롱' ? '<button onclick="window.autoAssignRoles()" class="px-4 py-2.5 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-all shrink-0 flex items-center gap-1.5"><i class="fas fa-magic"></i> 직위 자동부여</button>' : ''}
-                        ${gName === '뚱카롱' ? '<button onclick="window.autoAssignRolesDdung()" class="px-4 py-2.5 rounded-xl text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-all shrink-0 flex items-center gap-1.5"><i class="fas fa-magic"></i> 직위 자동부여</button>' : ''}
+                        ${isAdmin() && gName === '뚠카롱' ? '<button onclick="window.autoAssignRoles()" class="px-4 py-2.5 rounded-xl text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-all shrink-0 flex items-center gap-1.5"><i class="fas fa-magic"></i> 직위 자동부여</button>' : ''}
+                        ${isAdmin() && gName === '뚱카롱' ? '<button onclick="window.autoAssignRolesDdung()" class="px-4 py-2.5 rounded-xl text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-all shrink-0 flex items-center gap-1.5"><i class="fas fa-magic"></i> 직위 자동부여</button>' : ''}
                     </div>
                     <div class="relative w-full sm:w-64 shrink-0">
                         <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
@@ -2368,7 +2361,7 @@
                             <input type="text" oninput="window.handleSearch(this.value)" value="${appState.filters.search}" class="w-full pl-8 lg:pl-10 pr-3 lg:pr-4 py-2 lg:py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none text-[11px] lg:text-xs font-bold shadow-inner focus:ring-2 focus:ring-pink-50 transition-all" placeholder="닉네임 검색 (띄어쓰기로 다중검색)">
                         </div>
 
-                        <div class="flex gap-1.5 lg:gap-2 shrink-0 flex-wrap">
+                        ${isAdmin() ? `<div class="flex gap-1.5 lg:gap-2 shrink-0 flex-wrap">
                             <button onclick="window.toggleKickMode()" class="px-3 lg:px-4 py-1.5 lg:py-2 rounded-xl text-[10px] lg:text-xs font-bold transition-all ${appState.isKickMode ? 'bg-red-500 text-white shadow-md animate-pulse' : 'bg-red-50 text-red-500 hover:bg-red-100'}">
                                 <i class="fas fa-user-minus mr-1"></i> <span class="hidden sm:inline">일괄 추방</span> ${appState.isKickMode?'ON':'OFF'}
                             </button>
@@ -2381,7 +2374,7 @@
                             ${appState.isBatchMode ? `<button onclick="window.saveBatchUpdates()" class="px-3 lg:px-4 py-1.5 lg:py-2 bg-pink-500 text-white rounded-xl text-[10px] lg:text-xs font-bold shadow-md animate-pulse">저장</button>` : ''}
                             <button onclick="window.openAddModal()" class="w-8 h-8 lg:w-9 lg:h-9 flex items-center justify-center rounded-xl bg-pink-50 text-pink-500 hover:bg-pink-100 shadow-sm shrink-0"><i class="fas fa-plus text-xs"></i></button>
                             ` : ''}
-                        </div>
+                        </div>` : ''}
                     </div>
                 </div>
 
@@ -2421,7 +2414,7 @@
             const pageData = filtered.slice((appState.pagination.members - 1) * ITEMS_PER_PAGE, appState.pagination.members * ITEMS_PER_PAGE);
             const sortIcon = (f) => appState.filters.sortField === f ? (appState.filters.sortOrder === 'asc' ? ' <i class="fas fa-sort-up"></i>' : ' <i class="fas fa-sort-down"></i>') : '';
             
-            let html = `<div class="overflow-auto flex-1 relative -webkit-overflow-scrolling-touch"><table class="w-full text-left min-w-[700px] lg:min-w-[900px] text-[10px] lg:text-xs whitespace-nowrap"><thead class="bg-gray-50 text-[9px] lg:text-[10px] font-bold text-gray-500 border-b border-gray-100 shadow-sm"><tr><th class="py-2 px-2 text-center w-8 lg:w-12">${appState.isKickMode ? '선택' : 'No.'}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('name')">닉네임${sortIcon('name')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('mainInfo')">본캐${sortIcon('mainInfo')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('guild')">소속${sortIcon('guild')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('role')">직위${sortIcon('role')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('class')">직업${sortIcon('class')}</th><th class="py-2 px-2 text-right">관리</th></tr></thead><tbody class="divide-y divide-gray-50 text-gray-600 font-bold">`;
+            let html = `<div class="overflow-auto flex-1 relative -webkit-overflow-scrolling-touch"><table class="w-full text-left min-w-[700px] lg:min-w-[900px] text-[10px] lg:text-xs whitespace-nowrap"><thead class="bg-gray-50 text-[9px] lg:text-[10px] font-bold text-gray-500 border-b border-gray-100 shadow-sm"><tr><th class="py-2 px-2 text-center w-8 lg:w-12">${appState.isKickMode ? '선택' : 'No.'}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('name')">닉네임${sortIcon('name')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('mainInfo')">본캐${sortIcon('mainInfo')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('guild')">소속${sortIcon('guild')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('role')">직위${sortIcon('role')}</th><th class="py-2 px-2 sortable" onclick="window.handleSort('class')">직업${sortIcon('class')}</th>${isAdmin() ? '<th class="py-2 px-2 text-right">관리</th>' : ''}</tr></thead><tbody class="divide-y divide-gray-50 text-gray-600 font-bold">`;
             
             pageData.forEach((m, idx) => {
                 const globalIndex = (appState.pagination.members - 1) * ITEMS_PER_PAGE + idx + 1;
@@ -2468,7 +2461,7 @@
                     <td class="py-1.5 px-2">${appState.isBatchMode ? `<select onchange="window.stageUpdate('${m.id}', 'role', this.value)" class="bg-white border rounded px-1 text-[10px] outline-none">${(appState.guildRanks[currentGuild]||initialGuildRanks[currentGuild]||initialGuildRanks['뚠카롱']).map(r=>`<option value="${r}" ${currentRole===r?'selected':''}>${r}</option>`).join('')}</select>` : roleHtml}</td>
                     <td class="py-1.5 px-2">${appState.isBatchMode ? `<input type="text" value="${currentClass}" onchange="window.stageUpdate('${m.id}', 'class', this.value)" class="bg-white border rounded px-1 text-[10px] w-24 outline-none">` : `<span class="text-[10px] text-gray-400">${m.class||'-'}</span>`}</td>
                     <td class="py-1.5 px-2 text-right">
-                        ${!appState.isBatchMode && !appState.isKickMode ? `<div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="window.openEditModal('${m.id}')" class="w-7 h-7 rounded-lg border border-gray-100 text-blue-500 hover:bg-blue-50 flex items-center justify-center shadow-sm"><i class="fas fa-edit text-[10px]"></i></button><button onclick="window.openDeleteModal('${m.id}')" class="w-7 h-7 rounded-lg border border-gray-100 text-red-500 hover:bg-red-50 flex items-center justify-center shadow-sm"><i class="fas fa-trash text-[10px]"></i></button></div>` : '<span class="text-[9px] text-gray-300">-</span>'}
+                        ${isAdmin() && !appState.isBatchMode && !appState.isKickMode ? `<div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="window.openEditModal('${m.id}')" class="w-7 h-7 rounded-lg border border-gray-100 text-blue-500 hover:bg-blue-50 flex items-center justify-center shadow-sm"><i class="fas fa-edit text-[10px]"></i></button><button onclick="window.openDeleteModal('${m.id}')" class="w-7 h-7 rounded-lg border border-gray-100 text-red-500 hover:bg-red-50 flex items-center justify-center shadow-sm"><i class="fas fa-trash text-[10px]"></i></button></div>` : ''}
                     </td>
                 </tr>`;
             });
@@ -2497,11 +2490,14 @@
                 return `<tr class="hover:bg-gray-50 border-b border-gray-50 h-12 transition-colors font-bold text-xs"><td class="p-4 font-mono text-gray-400 text-[10px]">${h.date}</td><td class="p-4">${typeBadge}</td><td class="p-4 text-gray-700">${h.payer}${memo}</td><td class="p-4 text-blue-500">${h.receiver}</td><td class="p-4 text-right ${amtColor}">${amtDisplay}</td></tr>`;
             }).join('');
             const statsHtml = adminStats.map(([name, count]) => `<div class="bg-gray-50 rounded-2xl p-4 flex justify-between items-center border border-gray-100 hover:bg-white transition-all shadow-sm"><span class="font-bold text-gray-700 text-xs">${name}</span><span class="font-black ${count >= 0 ? 'text-pink-500' : 'text-blue-500'} text-lg">${count}개</span></div>`).join('');
-            container.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 fade-in h-full">
-                <div class="lg:col-span-1 bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
+            container.innerHTML = `<div class="grid grid-cols-1 ${isAdmin() ? 'lg:grid-cols-3' : ''} gap-8 fade-in h-full">
+                ${isAdmin() ? `<div class="lg:col-span-1 bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
                     <div class="mb-6">
                         <h3 class="text-xl font-bold text-gray-800 tracking-tight">보석금 관리</h3>
-                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">GEM BAIL MANAGEMENT</p>
+                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">GEM BAIL MANAGEMENT</p>` : `<div style="display:none;">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 tracking-tight">보석금 관리</h3>
+                        <p class="text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">GEM BAIL MANAGEMENT</p>`}
                     </div>
                     <div class="flex gap-2 mb-6" id="bailTypeToggle">
                         <button onclick="window.setBailType('deposit')" class="bail-type-btn flex-1 py-3 rounded-2xl font-bold text-xs transition-all bg-pink-500 text-white shadow-md" data-type="deposit">💎 납부</button>
@@ -2604,9 +2600,10 @@
             `}).join('');
 
             container.innerHTML = `
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 fade-in h-full">
-                <div class="lg:col-span-1 bg-white p-5 lg:p-10 rounded-2xl lg:rounded-[3rem] border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
-                    <div class="mb-4 lg:mb-8">
+            <div class="grid grid-cols-1 ${isAdmin() ? 'lg:grid-cols-3' : ''} gap-4 lg:gap-8 fade-in h-full">
+                ${isAdmin() ? `<div class="lg:col-span-1 bg-white p-5 lg:p-10 rounded-2xl lg:rounded-[3rem] border border-gray-100 shadow-sm flex flex-col h-full overflow-hidden">
+                    <div class="mb-4 lg:mb-8">` : `<div style="display:none;">
+                    <div class="mb-4 lg:mb-8">`}
                         <h3 class="text-base lg:text-xl font-bold text-gray-800 tracking-tight">벌점 부여</h3>
                         <p class="text-[10px] lg:text-xs text-gray-400 mt-1 uppercase font-bold tracking-widest">PENALTY RECORD</p>
                     </div>
@@ -6106,6 +6103,154 @@
         };
 
         // ═══ 가이드 페이지 렌더 (퍼블릭) ═══
+        // --- HOME (통합 페이지: 소개 + 통계 + 직위 + 링크 + 일정) ---
+        window.renderHome = async (container) => {
+            const guilds = SITE_CONFIG?.guilds || [{name:'뚠카롱'},{name:'뚱카롱'},{name:'밤카롱'},{name:'별카롱'},{name:'달카롱'},{name:'꿀카롱'}];
+            const guildColors = {'뚠카롱':'#ec4899','뚱카롱':'#e11d48','밤카롱':'#6366f1','별카롱':'#ca8a04','달카롱':'#2563eb','꿀카롱':'#d97706'};
+            
+            const replacePlaceholders = (html) => {
+                if(!html) return '';
+                html = html.replace(/\{\{뚠카롱_count\}\}/g, appState.members.filter(m=>m.guild==='뚠카롱').length);
+                html = html.replace(/\{\{뚱카롱_count\}\}/g, appState.members.filter(m=>m.guild==='뚱카롱').length);
+                html = html.replace(/\{\{부캐_count\}\}/g, appState.members.filter(m=>['밤카롱','별카롱','달카롱','꿀카롱'].includes(m.guild)).length);
+                html = html.replace(/\{\{전체_count\}\}/g, appState.members.length);
+                return html;
+            };
+
+            // 가이드 3개 병렬 로드
+            let introHtml = '', ranksHtml = '', linksHtml = '';
+            try {
+                const [introRes, ranksRes, linksRes] = await Promise.all([
+                    supaDb.from('guide_pages').select('content').eq('slug','intro').maybeSingle(),
+                    supaDb.from('guide_pages').select('content').eq('slug','ranks').maybeSingle(),
+                    supaDb.from('guide_pages').select('content').eq('slug','links').maybeSingle()
+                ]);
+                introHtml = replacePlaceholders(introRes.data?.content || '');
+                ranksHtml = replacePlaceholders(ranksRes.data?.content || '');
+                linksHtml = replacePlaceholders(linksRes.data?.content || '');
+            } catch(e) { console.error('Guide load error:', e); }
+
+            // 통계 카드
+            const statsCards = guilds.map(g => {
+                const cnt = appState.members.filter(m => m.guild === g.name).length;
+                const color = guildColors[g.name] || '#888';
+                const shortName = g.name.replace('카롱','');
+                return `<div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-3 text-center shadow-sm">
+                    <div class="text-xl font-black" style="color:${color}">${cnt}</div>
+                    <div class="text-[9px] font-bold text-gray-400 mt-0.5 tracking-wider">${shortName}카롱</div>
+                </div>`;
+            }).join('');
+
+            // 이벤트 로드
+            let eventsHtml = '';
+            try {
+                const { data: events } = await supaDb.from('events').select('*').order('date', { ascending: false }).limit(5);
+                if (events && events.length > 0) {
+                    eventsHtml = events.map(ev => `<div class="min-w-[150px] p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 flex-shrink-0">
+                        <div class="text-[10px] font-bold text-pink-500">${ev.date || ''}</div>
+                        <div class="text-xs font-bold text-gray-700 dark:text-gray-200 mt-0.5">${ev.title || ''}</div>
+                    </div>`).join('');
+                }
+            } catch(e) { console.error('Events load error:', e); }
+
+            const editBtn = isAdmin() ? `<button onclick="router('guide_edit')" class="text-[9px] font-bold text-pink-400 hover:text-pink-600 bg-pink-50 dark:bg-pink-900/30 px-2 py-1 rounded-lg transition-all"><i class="fas fa-edit mr-1"></i>편집</button>` : '';
+
+            container.innerHTML = `<div class="flex flex-col gap-4 fade-in">
+                <!-- 길드 소개 -->
+                <div class="bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl p-6 relative overflow-hidden">
+                    <div class="absolute right-4 top-3">${editBtn}</div>
+                    <div class="relative z-10">${introHtml || '<h3 class="text-lg font-black text-gray-800 dark:text-gray-100">뚠카롱에 오신 것을 환영합니다!</h3><p class="text-sm text-gray-500 mt-2">메이플스토리 리부트2 서버 길드 연합입니다.</p>'}</div>
+                </div>
+
+                <!-- 통계 카드 -->
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">${statsCards}</div>
+
+                <!-- 직위 안내 -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
+                    <div class="absolute right-4 top-3">${editBtn}</div>
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-medal text-pink-400"></i>직위 안내</h4>
+                    <div>${ranksHtml || '<p class="text-xs text-gray-400">직위 정보가 없습니다.</p>'}</div>
+                </div>
+
+                <!-- 링크 모음 -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
+                    <div class="absolute right-4 top-3">${editBtn}</div>
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-link text-pink-400"></i>링크 모음</h4>
+                    <div>${linksHtml || '<p class="text-xs text-gray-400">링크 정보가 없습니다.</p>'}</div>
+                </div>
+
+                <!-- 최근 일정 -->
+                ${eventsHtml ? `<div class="bg-white dark:bg-gray-800 rounded-2xl p-5">
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-calendar text-pink-400"></i>최근 일정</h4>
+                    <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">${eventsHtml}</div>
+                </div>` : ''}
+            </div>`;
+        };
+
+        // --- 직위 반영 (관리자 전용 페이지) ---
+        window.renderRoleAssign = (container) => {
+            const guilds = SITE_CONFIG?.guilds || [{name:'뚠카롱'},{name:'뚱카롱'}];
+            const mainGuilds = guilds.filter(g => ['뚠카롱','뚱카롱'].includes(g.name));
+
+            container.innerHTML = `<div class="flex flex-col gap-4 fade-in max-w-4xl mx-auto">
+                <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-xs font-bold text-green-700 dark:text-green-300">
+                    <i class="fas fa-lock mr-1"></i> 관리자 전용 — 수로 점수 기반 직위 자동 반영
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-medal text-amber-500"></i>뚠카롱 직위 자동 부여</h4>
+                    <p class="text-xs text-gray-500 mb-3">최근 수로 점수 기준으로 직위를 산정합니다. 마카롱/다쿠아즈 제외, 본캐만 대상.</p>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="window.autoAssignRoles()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-magic mr-1"></i>뚠카롱 직위 산정</button>
+                        <button onclick="window.autoAssignRolesDdung()" class="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-magic mr-1"></i>뚱카롱 직위 산정</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-coffee text-purple-500"></i>아인슈페너 강등 감지</h4>
+                    <p class="text-xs text-gray-500 mb-3">본캐가 크로칸슈 미달인 아인슈페너 멤버를 자동 감지합니다. (아인슈페너는 신청제 — 자동 부여 ❌, 강등만 감지)</p>
+                    <button onclick="window._checkEinDemotion()" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-search mr-1"></i>강등 대상 검사</button>
+                    <div id="einDemotionResult" class="mt-3"></div>
+                </div>
+
+                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    <strong>변경 컬럼은 드롭다운</strong>으로 직위를 수동 수정 가능 · <strong>체크박스 해제</strong>로 특정 멤버 제외 가능
+                </div>
+            </div>`;
+        };
+
+        // 아인슈페너 강등 대상 검사
+        window._checkEinDemotion = () => {
+            const einMembers = appState.members.filter(m => m.role === '아인슈페너');
+            if(einMembers.length === 0) {
+                document.getElementById('einDemotionResult').innerHTML = '<p class="text-xs text-gray-400">아인슈페너 멤버가 없습니다.</p>';
+                return;
+            }
+            const demotions = [];
+            einMembers.forEach(m => {
+                const mainName = m.mainCharName || '';
+                if(!mainName) return;
+                const mainChar = appState.members.find(mc => mc.name === mainName && mc.guild === '뚠카롱');
+                if(!mainChar) return;
+                const croc = ['크라운','파르페','티라미슈','크로칸슈'];
+                if(!croc.includes(mainChar.role)) {
+                    demotions.push({ name: m.name, mainName, mainRole: mainChar.role });
+                }
+            });
+            const el = document.getElementById('einDemotionResult');
+            if(demotions.length === 0) {
+                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600"><i class="fas fa-check mr-1"></i>강등 대상 없음 — 모든 아인슈페너의 본캐가 크로칸슈 이상입니다.</div>';
+            } else {
+                const rows = demotions.map(d => `<tr class="border-b border-red-100 dark:border-red-900"><td class="py-2 px-3 text-xs font-bold text-red-600">${d.name}</td><td class="py-2 px-3 text-xs text-gray-500">본캐: ${d.mainName}</td><td class="py-2 px-3 text-xs font-bold text-gray-400">${d.mainRole}</td></tr>`).join('');
+                el.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 rounded-xl overflow-hidden border border-red-200 dark:border-red-800">
+                    <div class="p-3 bg-red-100 dark:bg-red-900/40 text-xs font-bold text-red-700 dark:text-red-300"><i class="fas fa-exclamation-triangle mr-1"></i>강등 대상 ${demotions.length}명 — 본캐 크로칸슈 미달</div>
+                    <table class="w-full"><tbody>${rows}</tbody></table>
+                    <div class="p-3 text-[10px] text-red-400">DB 시트에서 직접 직위를 변경하거나, 뚱카롱 직위 산정을 실행하세요.</div>
+                </div>`;
+            }
+        };
+
         window.renderGuide = async (container, section) => {
             const guideTab = section || 'intro';
             container.innerHTML = '<div class="p-4 text-center text-gray-300 font-bold text-xs">로딩 중...</div>';
