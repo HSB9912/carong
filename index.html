@@ -352,6 +352,8 @@
                 <button id="darkToggle" onclick="window.toggleDark()" class="w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 transition-all border border-gray-100 shadow-sm shrink-0" title="다크모드"><i class="fas fa-adjust text-xs lg:text-base"></i></button>
                 <button id="refreshBtn" onclick="fetchMembers()" class="w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 transition-all border border-gray-100 shadow-sm shrink-0"><i class="fas fa-sync-alt text-xs lg:text-base"></i></button>
                 <button id="headerLoginBtn" onclick="window._authGoogleLogin()" class="px-3 py-1.5 bg-pink-500 text-white rounded-xl text-[10px] font-bold hover:bg-pink-600 transition-all shadow-sm"><i class="fas fa-lock mr-1"></i>관리자</button>
+                <button id="adminRequestBtn" onclick="window._requestAdminAccess()" class="hidden px-3 py-1.5 bg-amber-500 text-white rounded-xl text-[10px] font-bold hover:bg-amber-600 transition-all shadow-sm animate-pulse"><i class="fas fa-hand-paper mr-1"></i>관리자 요청</button>
+                <div id="adminRequestStatus" class="hidden text-[9px] font-bold flex items-center"></div>
                 <div id="headerUserInfo" class="hidden flex items-center gap-2">
                     <span id="headerUserName" class="text-[10px] font-bold text-gray-500 hidden lg:inline"></span>
                     <button onclick="window._authLogout()" class="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 transition-all border border-gray-100 shadow-sm" title="로그아웃"><i class="fas fa-sign-out-alt text-xs"></i></button>
@@ -573,6 +575,9 @@
                 if (userNameEl) userNameEl.textContent = CURRENT_USER.name || CURRENT_USER.email;
                 adminMenus.forEach(el => el.classList.remove('hidden'));
                 if (publicLabel) publicLabel.textContent = 'ADMIN';
+                // 요청 버튼 숨김
+                document.getElementById('adminRequestBtn')?.classList.add('hidden');
+                document.getElementById('adminRequestStatus')?.classList.add('hidden');
             } else if (CURRENT_USER) {
                 // 로그인 했지만 admin 아님
                 if (loginBtn) loginBtn.classList.add('hidden');
@@ -580,13 +585,102 @@
                 if (userNameEl) userNameEl.textContent = CURRENT_USER.name || CURRENT_USER.email;
                 adminMenus.forEach(el => el.classList.add('hidden'));
                 if (publicLabel) publicLabel.textContent = 'PUBLIC VIEW';
+                // 관리자 요청 상태 확인
+                window._checkAdminRequestStatus();
             } else {
                 // guest
                 if (loginBtn) loginBtn.classList.remove('hidden');
                 if (userInfo) userInfo.classList.add('hidden');
                 adminMenus.forEach(el => el.classList.add('hidden'));
                 if (publicLabel) publicLabel.textContent = 'PUBLIC VIEW';
+                document.getElementById('adminRequestBtn')?.classList.add('hidden');
+                document.getElementById('adminRequestStatus')?.classList.add('hidden');
             }
+        };
+
+        // 관리자 요청 상태 확인
+        window._checkAdminRequestStatus = async () => {
+            if (!CURRENT_USER) return;
+            const reqBtn = document.getElementById('adminRequestBtn');
+            const reqStatus = document.getElementById('adminRequestStatus');
+            if (!reqBtn || !reqStatus) return;
+
+            try {
+                const { data: wl } = await supaDb.from('admin_whitelist')
+                    .select('status').eq('email', CURRENT_USER.email).maybeSingle();
+
+                if (!wl) {
+                    // 요청 이력 없음 → 요청 버튼 표시
+                    reqBtn.classList.remove('hidden');
+                    reqStatus.classList.add('hidden');
+                } else if (wl.status === 'pending') {
+                    // 대기 중
+                    reqBtn.classList.add('hidden');
+                    reqStatus.classList.remove('hidden');
+                    reqStatus.innerHTML = '<i class="fas fa-clock text-amber-400 mr-1"></i><span class="text-amber-500">승인 대기 중</span>';
+                    window._startAdminPoll();
+                } else if (wl.status === 'rejected') {
+                    // 거절됨
+                    reqBtn.classList.add('hidden');
+                    reqStatus.classList.remove('hidden');
+                    reqStatus.innerHTML = '<i class="fas fa-times-circle text-red-400 mr-1"></i><span class="text-red-400">요청 거절됨</span>';
+                } else if (wl.status === 'approved') {
+                    // 승인됨 → 관리자로 전환 (새로고침 없이)
+                    userRole = 'admin';
+                    CURRENT_USER.role = wl.role || '관리자';
+                    reqBtn.classList.add('hidden');
+                    reqStatus.classList.add('hidden');
+                    if (window._adminPollTimer) { clearInterval(window._adminPollTimer); window._adminPollTimer = null; }
+                    window.showMsg('🎉 관리자 권한이 승인되었습니다! 관리자 메뉴가 활성화됩니다.', 'success');
+                    window._updateAuthUI();
+                    // 현재 페이지 재렌더
+                    router(appState.activeTab);
+                }
+            } catch(e) {
+                console.error('Admin request check error:', e);
+            }
+        };
+
+        // 관리자 권한 요청
+        window._requestAdminAccess = async () => {
+            if (!CURRENT_USER) return;
+            if (!confirm('관리자 권한을 요청하시겠습니까?\n기존 관리자가 승인하면 관리자 기능을 사용할 수 있습니다.')) return;
+
+            try {
+                const { error } = await supaDb.from('admin_whitelist').insert({
+                    email: CURRENT_USER.email,
+                    name: CURRENT_USER.name || '',
+                    status: 'pending',
+                    role: '관리자',
+                    requested_at: new Date().toISOString()
+                });
+                if (error) {
+                    if (error.code === '23505') {
+                        window.showMsg('이미 요청한 이력이 있습니다.', 'error');
+                    } else throw error;
+                } else {
+                    window.showMsg('관리자 권한 요청이 전송되었습니다! 기존 관리자의 승인을 기다려주세요.', 'success');
+                }
+                window._checkAdminRequestStatus();
+                // 승인 대기 폴링 시작
+                window._startAdminPoll();
+            } catch(e) {
+                window.showMsg('요청 실패: ' + e.message, 'error');
+            }
+        };
+
+        // 비관리자 승인 대기 시 30초마다 폴링
+        window._adminPollTimer = null;
+        window._startAdminPoll = () => {
+            if (window._adminPollTimer) return;
+            window._adminPollTimer = setInterval(async () => {
+                if (isAdmin() || !CURRENT_USER) {
+                    clearInterval(window._adminPollTimer);
+                    window._adminPollTimer = null;
+                    return;
+                }
+                await window._checkAdminRequestStatus();
+            }, 15000); // 15초마다 체크
         };
 
         let GUILD_START_DATE = new Date('2020-03-17');
