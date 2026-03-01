@@ -6264,6 +6264,13 @@
                     <div id="einDemotionResult" class="mt-3"></div>
                 </div>
 
+                <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-user-check text-blue-500"></i>본캐 정보 오기입 검사</h4>
+                    <p class="text-xs text-gray-500 mb-3">본캐 닉네임이 DB에 없거나, 부캐인데 본캐 필드가 비어있거나, 순환 참조 등 데이터 무결성을 검사합니다.</p>
+                    <button onclick="window._checkMainCharErrors()" class="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-search mr-1"></i>오기입 검사</button>
+                    <div id="mainCharErrorResult" class="mt-3"></div>
+                </div>
+
                 <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                     <i class="fas fa-info-circle mr-1"></i>
                     직위 산정 후 <strong>변경 컬럼 드롭다운</strong>으로 수동 수정 가능 · <strong>체크박스 해제</strong>로 특정 멤버 제외
@@ -6272,6 +6279,83 @@
         };
 
         // 아인슈페너 강등 대상 검사 + 실제 강등 실행
+        // ── 본캐 정보 오기입 검사 ──
+        window._checkMainCharErrors = () => {
+            const members = appState.members;
+            const nameSet = new Set(members.map(m => m.name));
+            const errors = [];
+
+            members.forEach(m => {
+                const mainName = (m.mainCharName || '').trim();
+
+                // 1) 부캐인데 본캐 필드가 비어있음
+                if(!m.isMain && !mainName) {
+                    errors.push({ type: 'empty', name: m.name, guild: m.guild, msg: '부캐인데 본캐 필드가 비어있음' });
+                    return;
+                }
+
+                // 본캐는 mainCharName 검사 불필요 (자기 자신이거나 비어있음)
+                if(m.isMain) {
+                    // 2) 본캐인데 mainCharName이 다른 사람
+                    if(mainName && mainName !== m.name && nameSet.has(mainName)) {
+                        errors.push({ type: 'wrong_main', name: m.name, guild: m.guild, msg: `본캐인데 mainCharName이 "${mainName}"(다른 사람)` });
+                    }
+                    return;
+                }
+
+                // 부캐 검사
+                if(mainName) {
+                    // 3) 본캐 닉네임이 DB에 없음
+                    if(!nameSet.has(mainName)) {
+                        errors.push({ type: 'not_found', name: m.name, guild: m.guild, msg: `본캐 "${mainName}"이(가) DB에 없음` });
+                        return;
+                    }
+
+                    // 4) 순환 참조 (A→B→A)
+                    const target = members.find(mc => mc.name === mainName);
+                    if(target && !target.isMain && target.mainCharName === m.name) {
+                        errors.push({ type: 'circular', name: m.name, guild: m.guild, msg: `순환 참조: ${m.name} → ${mainName} → ${m.name}` });
+                    }
+                }
+            });
+
+            const el = document.getElementById('mainCharErrorResult');
+            if(errors.length === 0) {
+                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600"><i class="fas fa-check mr-1"></i>오기입 없음 — 본캐 정보가 모두 정상입니다.</div>';
+                return;
+            }
+
+            const typeLabels = {
+                empty: { label: '본캐 필드 비어있음', color: 'amber', icon: 'fa-exclamation' },
+                not_found: { label: 'DB에 없는 본캐', color: 'red', icon: 'fa-question-circle' },
+                wrong_main: { label: '본캐인데 다른 사람 지정', color: 'purple', icon: 'fa-exchange-alt' },
+                circular: { label: '순환 참조', color: 'orange', icon: 'fa-sync' }
+            };
+
+            const byType = {};
+            errors.forEach(e => { if(!byType[e.type]) byType[e.type] = []; byType[e.type].push(e); });
+
+            let html = `<div class="space-y-2 mt-2">
+                <div class="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-xs font-bold text-red-600 dark:text-red-400"><i class="fas fa-exclamation-triangle mr-1"></i>오기입 ${errors.length}건 발견</div>`;
+
+            Object.entries(byType).forEach(([type, list]) => {
+                const t = typeLabels[type];
+                html += `<div class="bg-${t.color}-50 dark:bg-${t.color}-900/20 rounded-xl overflow-hidden border border-${t.color}-200 dark:border-${t.color}-800">
+                    <div class="px-3 py-2 bg-${t.color}-100 dark:bg-${t.color}-900/40 text-xs font-bold text-${t.color}-700 dark:text-${t.color}-300"><i class="fas ${t.icon} mr-1"></i>${t.label} (${list.length}건)</div>`;
+                list.forEach(e => {
+                    html += `<div class="flex items-center gap-3 px-3 py-2 border-b border-${t.color}-100 dark:border-${t.color}-800 text-xs last:border-b-0">
+                        <span class="font-bold text-gray-700 dark:text-gray-300 w-28">${e.name}</span>
+                        <span class="text-gray-400">${e.guild}</span>
+                        <span class="text-${t.color}-600 dark:text-${t.color}-400 text-[10px]">${e.msg}</span>
+                    </div>`;
+                });
+                html += `</div>`;
+            });
+
+            html += `<p class="text-[10px] text-gray-400 mt-1"><i class="fas fa-info-circle mr-1"></i>길드원 탭에서 해당 멤버를 편집하여 수정해주세요.</p></div>`;
+            el.innerHTML = html;
+        };
+
         window._checkEinDemotion = () => {
             const einMembers = appState.members.filter(m => m.role === '아인슈페너');
             if(einMembers.length === 0) {
