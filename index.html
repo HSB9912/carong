@@ -6278,45 +6278,104 @@
                 document.getElementById('einDemotionResult').innerHTML = '<p class="text-xs text-gray-400 mt-2">아인슈페너 멤버가 없습니다.</p>';
                 return;
             }
-            const demotions = [];
-            const croc = ['크라운','파르페','티라미슈','크로칸슈'];
+
+            // 본캐별로 아인슈페너 그룹핑
+            const mainMap = {};
             einMembers.forEach(m => {
                 const mainName = m.mainCharName || '';
                 if(!mainName) return;
-                const mainChar = appState.members.find(mc => mc.name === mainName && mc.guild === '뚠카롱');
-                if(!mainChar) return;
-                if(!croc.includes(mainChar.role)) {
-                    demotions.push({ name: m.name, guild: m.guild, mainName, mainRole: mainChar.role, id: m.id });
+                if(!mainMap[mainName]) {
+                    const mainChar = appState.members.find(mc => mc.name === mainName);
+                    const allAlts = appState.members.filter(mc => mc.mainCharName === mainName && mc.name !== mainName);
+                    mainMap[mainName] = { main: mainChar, einList: [], allAltCount: allAlts.length };
+                }
+                mainMap[mainName].einList.push(m);
+            });
+
+            const demotions = [];
+            const warnings = [];
+
+            Object.entries(mainMap).forEach(([mainName, info]) => {
+                const mainChar = info.main;
+                const einList = info.einList;
+                const altCount = info.allAltCount;
+                const mainRole = mainChar?.role || '알수없음';
+
+                if(['스콘','반죽(휴면)','뚠스콘'].includes(mainRole)) {
+                    einList.forEach(m => {
+                        demotions.push({ name: m.name, guild: m.guild, id: m.id, mainName, mainRole, reason: '본캐 스콘/반죽' });
+                    });
+                    return;
+                }
+
+                if(['팬케이크','롤케이크','부팬케이크','부케이크'].includes(mainRole)) {
+                    const allowed = Math.floor(altCount / 2);
+                    const einCount = einList.length;
+                    if(einCount > allowed) {
+                        warnings.push({
+                            mainName, mainRole, altCount, allowed, einCount, excess: einCount - allowed,
+                            einList: einList.map(m => ({ name: m.name, guild: m.guild, id: m.id }))
+                        });
+                    }
+                    return;
                 }
             });
+
             const el = document.getElementById('einDemotionResult');
-            if(demotions.length === 0) {
-                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600 mt-2"><i class="fas fa-check mr-1"></i>강등 대상 없음 — 모든 아인슈페너의 본캐가 크로칸슈 이상입니다.</div>';
+            if(demotions.length === 0 && warnings.length === 0) {
+                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600 mt-2"><i class="fas fa-check mr-1"></i>강등/초과 대상 없음</div>';
                 return;
             }
-            // 길드별 분류
-            const byGuild = {};
-            demotions.forEach(d => { if(!byGuild[d.guild]) byGuild[d.guild] = []; byGuild[d.guild].push(d); });
 
-            let html = `<div class="bg-red-50 dark:bg-red-900/20 rounded-xl overflow-hidden border border-red-200 dark:border-red-800 mt-2">
-                <div class="p-3 bg-red-100 dark:bg-red-900/40 text-xs font-bold text-red-700 dark:text-red-300"><i class="fas fa-exclamation-triangle mr-1"></i>강등 대상 ${demotions.length}명</div>`;
+            let html = '';
 
-            Object.keys(byGuild).sort().forEach(guild => {
-                html += `<div class="px-3 py-2 bg-red-50/50 dark:bg-red-900/10 text-[10px] font-bold text-red-500 border-b border-red-100 dark:border-red-800">${guild} (${byGuild[guild].length}명)</div>`;
-                byGuild[guild].forEach(d => {
-                    html += `<div class="flex items-center gap-3 px-3 py-2 border-b border-red-50 dark:border-red-900 text-xs">
-                        <input type="checkbox" checked data-ein-id="${d.id}" class="ein-chk w-4 h-4 accent-red-500 cursor-pointer">
-                        <span class="font-bold text-red-600 dark:text-red-400 w-32">${d.name}</span>
-                        <span class="text-gray-400">본캐: ${d.mainName}</span>
-                        <span class="text-gray-400">(${d.mainRole})</span>
+            if(demotions.length > 0) {
+                const byGuild = {};
+                demotions.forEach(d => { if(!byGuild[d.guild]) byGuild[d.guild] = []; byGuild[d.guild].push(d); });
+                html += `<div class="bg-red-50 dark:bg-red-900/20 rounded-xl overflow-hidden border border-red-200 dark:border-red-800 mt-2">
+                    <div class="p-3 bg-red-100 dark:bg-red-900/40 text-xs font-bold text-red-700 dark:text-red-300"><i class="fas fa-ban mr-1"></i>본캐 스콘/반죽 \u2014 아인슈페너 전부 압수 (${demotions.length}명)</div>`;
+                Object.keys(byGuild).sort().forEach(guild => {
+                    html += `<div class="px-3 py-1.5 bg-red-50/50 text-[10px] font-bold text-red-500 border-b border-red-100">${guild} (${byGuild[guild].length}명)</div>`;
+                    byGuild[guild].forEach(d => {
+                        html += `<div class="flex items-center gap-3 px-3 py-2 border-b border-red-50 text-xs">
+                            <input type="checkbox" checked data-ein-id="${d.id}" class="ein-chk w-4 h-4 accent-red-500 cursor-pointer">
+                            <span class="font-bold text-red-600 w-28">${d.name}</span>
+                            <span class="text-gray-400">본캐: ${d.mainName} (${d.mainRole})</span>
+                        </div>`;
+                    });
+                });
+                html += `<div class="p-3 flex justify-between items-center">
+                    <span class="text-[10px] text-red-400">체크된 멤버의 아인슈페너 직위를 해제합니다.</span>
+                    <button onclick="window._executeEinDemotion()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-arrow-down mr-1"></i>강등 실행</button>
+                </div></div>`;
+            }
+
+            if(warnings.length > 0) {
+                html += `<div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl overflow-hidden border border-amber-200 dark:border-amber-800 mt-3">
+                    <div class="p-3 bg-amber-100 dark:bg-amber-900/40 text-xs font-bold text-amber-700 dark:text-amber-300"><i class="fas fa-exclamation-triangle mr-1"></i>면제 초과 \u2014 아인슈페너 수 > 허용수 (${warnings.length}건)</div>`;
+                warnings.forEach(w => {
+                    html += `<div class="p-3 border-b border-amber-100 dark:border-amber-800">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="font-bold text-amber-700 text-xs">${w.mainName}</span>
+                            <span class="text-[10px] text-gray-400">(${w.mainRole})</span>
+                            <span class="text-[10px] bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full font-bold">부캐 ${w.altCount}명 \u00b7 허용 ${w.allowed}명 \u00b7 아인슈페너 ${w.einCount}명 \u00b7 <span class="text-red-600">${w.excess}명 초과</span></span>
+                        </div>
+                        <div class="space-y-1">`;
+                    w.einList.forEach(e => {
+                        html += `<div class="flex items-center gap-2 text-xs text-gray-600 pl-2">
+                            <input type="checkbox" data-ein-id="${e.id}" class="ein-warn-chk w-3.5 h-3.5 accent-amber-500 cursor-pointer">
+                            <span>${e.name}</span> <span class="text-gray-300">(${e.guild})</span>
+                        </div>`;
+                    });
+                    html += `</div>
+                        <p class="text-[10px] text-amber-500 mt-2"><i class="fas fa-info-circle mr-1"></i>${w.excess}명의 아인슈페너 직위를 해제하거나, 부캐를 추가 가입해주세요.</p>
                     </div>`;
                 });
-            });
-
-            html += `<div class="p-3 flex justify-between items-center bg-red-50 dark:bg-red-900/20">
-                <span class="text-[10px] text-red-400">체크된 멤버의 직위를 뚠스콘으로 강등합니다.</span>
-                <button onclick="window._executeEinDemotion()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-arrow-down mr-1"></i>강등 실행</button>
-            </div></div>`;
+                html += `<div class="p-3 flex justify-between items-center">
+                    <span class="text-[10px] text-amber-500">체크한 멤버만 아인슈페너 해제</span>
+                    <button onclick="window._executeEinWarning()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-arrow-down mr-1"></i>선택 강등</button>
+                </div></div>`;
+            }
 
             el.innerHTML = html;
             window._einDemotions = demotions;
@@ -6328,27 +6387,43 @@
             document.querySelectorAll('.ein-chk:checked').forEach(c => checkedIds.add(c.dataset.einId));
             const targets = allDemotions.filter(d => checkedIds.has(d.id));
             if(targets.length === 0) return window.showMsg('선택된 강등 대상이 없습니다.', 'error');
-
-            if(!confirm(targets.length + '명의 아인슈페너를 뚠스콘으로 강등하시겠습니까?')) return;
-
+            if(!confirm(targets.length + '명의 아인슈페너 직위를 해제하시겠습니까?')) return;
             window.showLoading(true);
             window.setLoadProgress(20, '강등 처리 중...');
-
-            const allMembers = appState.members.map(m => {
-                const target = targets.find(t => t.id === m.id);
-                return {
-                    name: m.name, guild: m.guild,
-                    role: target ? '뚠스콘' : m.role,
-                    class: m.class || '', isMain: m.isMain || false,
-                    mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
-                };
-            });
-
+            const targetIds = new Set(targets.map(t => t.id));
+            const allMembers = appState.members.map(m => ({
+                name: m.name, guild: m.guild,
+                role: targetIds.has(m.id) ? (m.guild === '뚠카롱' ? '스콘' : '뚠스콘') : m.role,
+                class: m.class || '', isMain: m.isMain || false,
+                mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
+            }));
             window.setLoadProgress(50, '서버 전송 중...');
             const success = await window.sendAction('save_members', { members: allMembers });
-            window.setLoadProgress(80, '데이터 갱신 중...');
             if(success) {
                 window.showMsg(targets.length + '명 아인슈페너 강등 완료!', 'success');
+                await window.fetchMembers();
+                window.renderRoleAssign(document.getElementById('contentArea'));
+            }
+            window.showLoading(false);
+        };
+
+        window._executeEinWarning = async () => {
+            const checkedIds = new Set();
+            document.querySelectorAll('.ein-warn-chk:checked').forEach(c => checkedIds.add(c.dataset.einId));
+            if(checkedIds.size === 0) return window.showMsg('강등할 멤버를 체크해주세요.', 'error');
+            if(!confirm(checkedIds.size + '명의 아인슈페너 직위를 해제하시겠습니까?')) return;
+            window.showLoading(true);
+            window.setLoadProgress(20, '강등 처리 중...');
+            const allMembers = appState.members.map(m => ({
+                name: m.name, guild: m.guild,
+                role: checkedIds.has(m.id) ? (m.guild === '뚠카롱' ? '스콘' : '뚠스콘') : m.role,
+                class: m.class || '', isMain: m.isMain || false,
+                mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
+            }));
+            window.setLoadProgress(50, '서버 전송 중...');
+            const success = await window.sendAction('save_members', { members: allMembers });
+            if(success) {
+                window.showMsg(checkedIds.size + '명 아인슈페너 강등 완료!', 'success');
                 await window.fetchMembers();
                 window.renderRoleAssign(document.getElementById('contentArea'));
             }
