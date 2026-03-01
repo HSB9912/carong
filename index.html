@@ -6266,7 +6266,7 @@
 
                 <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
                     <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-user-check text-blue-500"></i>본캐 정보 오기입 검사</h4>
-                    <p class="text-xs text-gray-500 mb-3">본캐 닉네임이 DB에 없거나, 부캐인데 본캐 필드가 비어있거나, 순환 참조 등 데이터 무결성을 검사합니다.</p>
+                    <p class="text-xs text-gray-500 mb-3">본캐 닉네임이 DB에 없거나, 본캐 필드가 잘못 설정된 멤버를 검사합니다.</p>
                     <button onclick="window._checkMainCharErrors()" class="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-search mr-1"></i>오기입 검사</button>
                     <div id="mainCharErrorResult" class="mt-3"></div>
                 </div>
@@ -6288,26 +6288,30 @@
             members.forEach(m => {
                 const mainName = (m.mainCharName || '').trim();
 
+                // 1) 부캐인데 본캐 필드가 비어있음
                 if(!m.isMain && !mainName) {
                     errors.push({ type: 'empty', id: m.id, name: m.name, guild: m.guild, currentMain: '', msg: '부캐인데 본캐 필드가 비어있음' });
                     return;
                 }
 
                 if(m.isMain) {
+                    // 2) 본캐인데 자기 이름을 써놓음 → 비워야 함
+                    if(mainName && mainName === m.name) {
+                        errors.push({ type: 'self_ref', id: m.id, name: m.name, guild: m.guild, currentMain: mainName, msg: '본캐인데 본캐필드에 자기 이름' });
+                        return;
+                    }
+                    // 3) 본캐인데 다른 사람 이름 → isMain이 잘못 설정됨
                     if(mainName && mainName !== m.name && nameSet.has(mainName)) {
                         errors.push({ type: 'wrong_main', id: m.id, name: m.name, guild: m.guild, currentMain: mainName, msg: `본캐인데 본캐필드가 "${mainName}"` });
                     }
                     return;
                 }
 
+                // 부캐 검사
                 if(mainName) {
+                    // 4) 본캐 닉네임이 DB에 없음
                     if(!nameSet.has(mainName)) {
                         errors.push({ type: 'not_found', id: m.id, name: m.name, guild: m.guild, currentMain: mainName, msg: `본캐 "${mainName}" DB에 없음` });
-                        return;
-                    }
-                    const target = members.find(mc => mc.name === mainName);
-                    if(target && !target.isMain && target.mainCharName === m.name) {
-                        errors.push({ type: 'circular', id: m.id, name: m.name, guild: m.guild, currentMain: mainName, msg: `순환: ${m.name} ↔ ${mainName}` });
                     }
                 }
             });
@@ -6327,8 +6331,8 @@
             const typeLabels = {
                 empty: { label: '본캐 필드 비어있음', color: 'amber', icon: 'fa-exclamation' },
                 not_found: { label: 'DB에 없는 본캐', color: 'red', icon: 'fa-question-circle' },
-                wrong_main: { label: '본캐인데 다른 사람 지정', color: 'purple', icon: 'fa-exchange-alt' },
-                circular: { label: '순환 참조', color: 'orange', icon: 'fa-sync' }
+                self_ref: { label: '본캐인데 자기 이름 입력', color: 'orange', icon: 'fa-sync' },
+                wrong_main: { label: '본캐인데 다른 사람 지정', color: 'purple', icon: 'fa-exchange-alt' }
             };
 
             const byType = {};
@@ -6347,16 +6351,23 @@
                 list.forEach((e, i) => {
                     const fixType = type === 'wrong_main' ? 'clear' : 'set';
                     html += `<div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700 text-xs last:border-b-0 flex-wrap">
+                        <input type="checkbox" data-fix-chk="${e.id}" class="mainchar-chk w-3.5 h-3.5 accent-blue-500 cursor-pointer shrink-0">
                         <span class="font-bold text-gray-700 dark:text-gray-300 w-24 shrink-0">${e.name}</span>
                         <span class="text-gray-400 text-[10px] w-16 shrink-0">${e.guild}</span>
                         <span class="text-${t.color}-600 dark:text-${t.color}-400 text-[10px] flex-1">${e.msg}</span>
                         <span class="text-[10px] text-gray-400 shrink-0">→</span>
                         ${type === 'wrong_main'
-                            ? `<select data-fix-id="${e.id}" class="mainchar-fix bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-[10px] font-bold outline-none w-28 shrink-0">
-                                <option value="">비우기 (본캐)</option>
-                                <option value="${e.name}" selected>${e.name} (자기자신)</option>
+                            ? `<select data-fix-id="${e.id}" data-fix-type="wrong_main" class="mainchar-fix bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-[10px] font-bold outline-none w-36 shrink-0" onchange="this.closest('div').querySelector('.mainchar-chk').checked=true">
+                                <option value="__keep__">수정 안함</option>
+                                <option value="__to_alt__">부캐로 변경 (본캐: ${e.currentMain})</option>
+                                <option value="__clear__">본캐 필드 비우기</option>
                             </select>`
-                            : `<input list="mainCharSuggest" data-fix-id="${e.id}" class="mainchar-fix bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-[10px] font-bold outline-none w-28 shrink-0" placeholder="본캐 닉네임" value="${e.currentMain}">`
+                        : type === 'self_ref'
+                            ? `<select data-fix-id="${e.id}" data-fix-type="self_ref" class="mainchar-fix bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-[10px] font-bold outline-none w-36 shrink-0" onchange="this.closest('div').querySelector('.mainchar-chk').checked=true">
+                                <option value="__keep__">수정 안함</option>
+                                <option value="__clear__">본캐 필드 비우기</option>
+                            </select>`
+                            : `<input list="mainCharSuggest" data-fix-id="${e.id}" data-fix-type="normal" class="mainchar-fix bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-[10px] font-bold outline-none w-28 shrink-0" placeholder="본캐 닉네임" value="${e.currentMain}" oninput="this.closest('div').querySelector('.mainchar-chk').checked=true">`
                         }
                     </div>`;
                 });
@@ -6368,13 +6379,32 @@
         };
 
         window._saveMainCharFixes = async () => {
+            // 체크된 ID 수집
+            const checkedIds = new Set();
+            document.querySelectorAll('.mainchar-chk:checked').forEach(el => checkedIds.add(el.dataset.fixChk));
+
             const fixes = {};
             document.querySelectorAll('.mainchar-fix').forEach(el => {
                 const id = el.dataset.fixId;
+                if(!checkedIds.has(id)) return; // 체크 안 된 건 스킵
+                const fixType = el.dataset.fixType;
                 const val = (el.value || '').trim();
-                const orig = (window._mainCharErrors || []).find(e => e.id === id);
-                if(orig && val !== orig.currentMain) {
-                    fixes[id] = val;
+
+                if(fixType === 'wrong_main' || fixType === 'self_ref') {
+                    if(val === '__keep__') return; // 수정 안함
+                    const orig = (window._mainCharErrors || []).find(e => e.id === id);
+                    if(val === '__to_alt__') {
+                        // 본캐→부캐로 변경, mainCharName 유지
+                        fixes[id] = { isMain: false, mainCharName: orig?.currentMain || '' };
+                    } else if(val === '__clear__') {
+                        // 본캐 필드 비우기 (isMain 유지)
+                        fixes[id] = { mainCharName: '' };
+                    }
+                } else {
+                    const orig = (window._mainCharErrors || []).find(e => e.id === id);
+                    if(orig && val !== orig.currentMain) {
+                        fixes[id] = { mainCharName: val };
+                    }
                 }
             });
 
@@ -6385,12 +6415,16 @@
             window.showLoading(true);
             window.setLoadProgress(20, '본캐 정보 수정 중...');
 
-            const allMembers = appState.members.map(m => ({
-                name: m.name, guild: m.guild, role: m.role,
-                class: m.class || '', isMain: m.isMain || false,
-                mainCharName: fixes[m.id] !== undefined ? fixes[m.id] : (m.mainCharName || ''),
-                joinDate: m.joinDate || ''
-            }));
+            const allMembers = appState.members.map(m => {
+                const fix = fixes[m.id];
+                return {
+                    name: m.name, guild: m.guild, role: m.role,
+                    class: m.class || '',
+                    isMain: fix?.isMain !== undefined ? fix.isMain : (m.isMain || false),
+                    mainCharName: fix?.mainCharName !== undefined ? fix.mainCharName : (m.mainCharName || ''),
+                    joinDate: m.joinDate || ''
+                };
+            });
 
             window.setLoadProgress(50, '서버 전송 중...');
             const success = await window.sendAction('save_members', { members: allMembers });
