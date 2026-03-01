@@ -3418,6 +3418,7 @@
                         <button onclick="document.getElementById('guideBlockMenu').classList.toggle('hidden')" class="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-xl text-[10px] font-bold hover:bg-purple-100 transition-all border border-purple-100">
                             <i class="fas fa-puzzle-piece"></i>블록 삽입 ▾
                         </button>
+                        <span class="text-[9px] text-gray-400 font-bold ml-2"><kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-mono">/</kbd> 입력으로 빠른 삽입 · 이미지 드래그&드롭 · 마크다운 문법 지원 (<code>#</code> <code>-</code> <code>1.</code> <code>></code> <code>---</code>)</span>
                         <div id="guideBlockMenu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-2xl p-2 z-[100] w-80 max-h-[50vh] overflow-y-auto">
                             <div class="text-[9px] text-gray-400 font-bold px-3 py-1.5 uppercase">클릭하면 에디터에 삽입됩니다</div>
                             ${window._guideBlocks.map(b => `<button onclick="window._guideInsertBlock('${b.id}')" class="w-full text-left px-3 py-2 rounded-xl hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-2 transition-all"><span>${b.icon}</span><span>${b.label}</span></button>`).join('')}
@@ -3454,6 +3455,323 @@
                 const menu = document.getElementById('guideBlockMenu');
                 if (menu && !menu.parentElement.contains(e.target)) menu.classList.add('hidden');
             }, { once: false });
+
+            // 이미지 플레이스홀더 클릭 & 우클릭 → 이미지 교체
+            setTimeout(() => {
+                const editor = document.getElementById('guideEditor');
+                if (!editor) return;
+
+                // 클릭: [이미지삽입:...] 텍스트가 있는 div 클릭 시
+                editor.addEventListener('click', (e) => {
+                    const target = e.target.closest('div');
+                    if (target && target.textContent.trim().match(/^\[이미지삽입[:：]/)) {
+                        e.preventDefault();
+                        window._guideReplaceWithImage(target);
+                    }
+                });
+
+                // 우클릭: 이미지 위에서 우클릭 시 교체 메뉴
+                editor.addEventListener('contextmenu', (e) => {
+                    const img = e.target.closest('img');
+                    const placeholder = e.target.closest('div');
+                    
+                    if (img || (placeholder && placeholder.textContent.trim().match(/^\[이미지삽입[:：]/))) {
+                        e.preventDefault();
+                        window._showImageContextMenu(e.clientX, e.clientY, img || placeholder);
+                    }
+                });
+
+                // ─── 노션 스타일: 마크다운 단축키 ───
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const sel = window.getSelection();
+                        if (!sel.rangeCount) return;
+                        const node = sel.anchorNode;
+                        const text = (node?.textContent || '').trimStart();
+                        const line = text.split('\n').pop() || '';
+
+                        // 제목: # → h1, ## → h2, ### → h3
+                        const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+                        if (headingMatch) {
+                            e.preventDefault();
+                            const level = headingMatch[1].length;
+                            const content = headingMatch[2];
+                            const sizes = { 1: '24px', 2: '20px', 3: '16px' };
+                            document.execCommand('selectAll', false, null);
+                            const range = sel.getRangeAt(0);
+                            // 현재 줄만 선택
+                            const block = node.parentElement?.closest('p,div,h1,h2,h3,h4,li') || node.parentElement;
+                            if (block && editor.contains(block)) {
+                                block.outerHTML = `<h${level} style="font-size:${sizes[level]};font-weight:900;color:#1f2937;margin:12px 0 8px 0">${content}</h${level}>`;
+                            }
+                            return;
+                        }
+
+                        // 구분선: --- 또는 ***
+                        if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
+                            e.preventDefault();
+                            const block = node.parentElement?.closest('p,div') || node.parentElement;
+                            if (block && editor.contains(block)) {
+                                block.outerHTML = '<hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0"><p></p>';
+                            }
+                            return;
+                        }
+                    }
+
+                    // Tab → 들여쓰기
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            document.execCommand('outdent');
+                        } else {
+                            document.execCommand('indent');
+                        }
+                    }
+                });
+
+                // ─── 마크다운 인라인: Space 후 변환 ───
+                editor.addEventListener('input', (e) => {
+                    if (e.inputType !== 'insertText' || e.data !== ' ') return;
+                    const sel = window.getSelection();
+                    if (!sel.rangeCount) return;
+                    const node = sel.anchorNode;
+                    if (node?.nodeType !== 3) return;
+                    const text = node.textContent;
+                    const offset = sel.anchorOffset;
+                    const before = text.substring(0, offset).trimStart();
+
+                    // 제목 변환
+                    const headingMatch = before.match(/^(#{1,3})$/);
+                    if (headingMatch) {
+                        const level = headingMatch[1].length;
+                        const sizes = { 1: '24px', 2: '20px', 3: '16px' };
+                        const block = node.parentElement?.closest('p,div') || node.parentElement;
+                        if (block && editor.contains(block)) {
+                            const rest = text.substring(offset);
+                            block.outerHTML = `<h${level} style="font-size:${sizes[level]};font-weight:900;color:#1f2937;margin:12px 0 8px 0">${rest.trim()}&nbsp;</h${level}>`;
+                            // 커서를 끝으로
+                            const newEl = editor.querySelector(`h${level}:last-of-type`);
+                            if (newEl) { const r = document.createRange(); r.selectNodeContents(newEl); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+                        }
+                        return;
+                    }
+
+                    // 불릿 리스트: - 또는 *
+                    if (/^[-*]$/.test(before)) {
+                        const block = node.parentElement?.closest('p,div') || node.parentElement;
+                        if (block && editor.contains(block)) {
+                            const rest = text.substring(offset);
+                            block.outerHTML = `<ul style="padding-left:20px;margin:4px 0"><li>${rest.trim()}&nbsp;</li></ul>`;
+                            const li = editor.querySelector('ul:last-of-type li:last-child');
+                            if (li) { const r = document.createRange(); r.selectNodeContents(li); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+                        }
+                        return;
+                    }
+
+                    // 번호 리스트: 1.
+                    if (/^\d+\.$/.test(before)) {
+                        const block = node.parentElement?.closest('p,div') || node.parentElement;
+                        if (block && editor.contains(block)) {
+                            const rest = text.substring(offset);
+                            block.outerHTML = `<ol style="padding-left:20px;margin:4px 0"><li>${rest.trim()}&nbsp;</li></ol>`;
+                            const li = editor.querySelector('ol:last-of-type li:last-child');
+                            if (li) { const r = document.createRange(); r.selectNodeContents(li); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+                        }
+                        return;
+                    }
+
+                    // 인용: >
+                    if (before === '>') {
+                        const block = node.parentElement?.closest('p,div') || node.parentElement;
+                        if (block && editor.contains(block)) {
+                            const rest = text.substring(offset);
+                            block.outerHTML = `<blockquote style="border-left:3px solid #e5e7eb;padding:8px 16px;margin:8px 0;color:#6b7280;font-style:italic">${rest.trim()}&nbsp;</blockquote>`;
+                            const bq = editor.querySelector('blockquote:last-of-type');
+                            if (bq) { const r = document.createRange(); r.selectNodeContents(bq); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+                        }
+                        return;
+                    }
+                });
+
+                // ─── 슬래시 명령 (/) ───
+                editor.addEventListener('keyup', (e) => {
+                    if (e.key === 'Process' || e.key === '/') {
+                        const sel = window.getSelection();
+                        if (!sel.rangeCount) return;
+                        const node = sel.anchorNode;
+                        const text = node?.textContent || '';
+                        const offset = sel.anchorOffset;
+                        // / 뒤에 커서가 있는지
+                        if (text.charAt(offset - 1) === '/') {
+                            window._showSlashMenu(sel);
+                        }
+                    }
+                    // ESC로 슬래시 메뉴 닫기
+                    if (e.key === 'Escape') {
+                        document.getElementById('slashMenu')?.remove();
+                    }
+                });
+
+                // ─── 드래그&드롭 이미지 ───
+                editor.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    editor.style.outline = '2px dashed #a855f7';
+                });
+                editor.addEventListener('dragleave', () => {
+                    editor.style.outline = 'none';
+                });
+                editor.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    editor.style.outline = 'none';
+                    const files = e.dataTransfer?.files;
+                    if (!files || files.length === 0) return;
+                    for (const file of files) {
+                        if (!file.type.startsWith('image/')) continue;
+                        window.showMsg('이미지 업로드 중...', 'info');
+                        try {
+                            const ext = file.name.split('.').pop().toLowerCase();
+                            const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+                            const { error } = await supaDb.storage.from('guide-images').upload(safeName, file, { cacheControl: '3600', upsert: false });
+                            if (error) throw error;
+                            const { data: { publicUrl } } = supaDb.storage.from('guide-images').getPublicUrl(safeName);
+                            const imgHtml = `<div style="margin:12px 0;text-align:center"><img src="${publicUrl}" style="max-width:100%;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1)" alt="이미지"></div>`;
+                            editor.focus();
+                            document.execCommand('insertHTML', false, imgHtml);
+                            window.showMsg('이미지 삽입 완료!', 'success');
+                        } catch(err) {
+                            window.showMsg('업로드 실패: ' + err.message, 'error');
+                        }
+                    }
+                });
+
+                // ─── 플로팅 툴바 (텍스트 선택 시) ───
+                editor.addEventListener('mouseup', () => {
+                    setTimeout(() => {
+                        const sel = window.getSelection();
+                        const text = sel?.toString()?.trim();
+                        if (!text || text.length < 1) {
+                            document.getElementById('floatingToolbar')?.remove();
+                            return;
+                        }
+                        const range = sel.getRangeAt(0);
+                        const rect = range.getBoundingClientRect();
+                        
+                        let tb = document.getElementById('floatingToolbar');
+                        if (!tb) {
+                            tb = document.createElement('div');
+                            tb.id = 'floatingToolbar';
+                            tb.className = 'fixed z-[10000] bg-gray-900 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5';
+                            document.body.appendChild(tb);
+                        }
+                        tb.style.left = Math.max(8, rect.left + rect.width/2 - 130) + 'px';
+                        tb.style.top = (rect.top - 44 + window.scrollY) + 'px';
+                        tb.innerHTML = `
+                            <button onclick="document.execCommand('bold')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-white text-xs font-black" title="굵게">B</button>
+                            <button onclick="document.execCommand('italic')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-white text-xs italic" title="기울임">I</button>
+                            <button onclick="document.execCommand('underline')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-white text-xs underline" title="밑줄">U</button>
+                            <button onclick="document.execCommand('strikeThrough')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-white text-xs line-through" title="취소선">S</button>
+                            <span class="w-px h-5 bg-gray-600 mx-0.5"></span>
+                            <button onclick="document.execCommand('foreColor',false,'#ec4899')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-pink-400 text-xs font-bold" title="핑크">A</button>
+                            <button onclick="document.execCommand('foreColor',false,'#ef4444')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-red-400 text-xs font-bold" title="빨강">A</button>
+                            <button onclick="document.execCommand('foreColor',false,'#3b82f6')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-blue-400 text-xs font-bold" title="파랑">A</button>
+                            <span class="w-px h-5 bg-gray-600 mx-0.5"></span>
+                            <button onclick="var u=prompt('URL:');if(u)document.execCommand('createLink',false,u)" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-white text-xs" title="링크"><i class="fas fa-link text-[10px]"></i></button>
+                            <button onclick="document.execCommand('removeFormat')" class="w-7 h-7 rounded-lg hover:bg-gray-700 text-gray-400 text-xs" title="서식제거"><i class="fas fa-eraser text-[10px]"></i></button>
+                        `;
+                    }, 10);
+                });
+                // 클릭 시 플로팅 툴바 숨기기
+                document.addEventListener('mousedown', (e) => {
+                    const ft = document.getElementById('floatingToolbar');
+                    if (ft && !ft.contains(e.target)) ft.remove();
+                });
+
+            }, 200);
+        };
+
+        // ─── 슬래시 명령 메뉴 ───
+        window._slashCommands = [
+            { icon: 'H', label: '제목 1', desc: '큰 제목', action: () => { window._removeSlashChar(); document.execCommand('formatBlock', false, 'h2'); } },
+            { icon: 'H', label: '제목 2', desc: '중간 제목', action: () => { window._removeSlashChar(); document.execCommand('formatBlock', false, 'h3'); } },
+            { icon: 'H', label: '제목 3', desc: '작은 제목', action: () => { window._removeSlashChar(); document.execCommand('formatBlock', false, 'h4'); } },
+            { icon: '•', label: '글머리 기호 목록', desc: '간단 목록', action: () => { window._removeSlashChar(); document.execCommand('insertUnorderedList'); } },
+            { icon: '1.', label: '번호 매기기 목록', desc: '번호 목록', action: () => { window._removeSlashChar(); document.execCommand('insertOrderedList'); } },
+            { icon: '❝', label: '인용', desc: '인용문 블록', action: () => { window._removeSlashChar(); document.execCommand('formatBlock', false, 'blockquote'); } },
+            { icon: '—', label: '구분선', desc: '가로 구분선', action: () => { window._removeSlashChar(); document.execCommand('insertHorizontalRule'); } },
+            { icon: '🖼', label: '이미지', desc: '이미지 업로드', action: () => { window._removeSlashChar(); window._guideUploadImage(); } },
+            { icon: '📋', label: '코드 블록', desc: '코드 영역', action: () => { window._removeSlashChar(); document.execCommand('insertHTML', false, '<pre style="background:#f3f4f6;padding:16px;border-radius:8px;font-family:monospace;font-size:12px;margin:8px 0;overflow-x:auto">코드를 입력하세요</pre>'); } },
+            { icon: '💡', label: '콜아웃 (팁)', desc: '강조 박스', action: () => { window._removeSlashChar(); document.execCommand('insertHTML', false, '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 16px;margin:8px 0;font-size:12px;color:#2563eb;font-weight:700;display:flex;align-items:flex-start;gap:8px"><span style="font-size:16px">💡</span><span>내용을 입력하세요</span></div>'); } },
+            { icon: '⚠️', label: '콜아웃 (경고)', desc: '경고 박스', action: () => { window._removeSlashChar(); document.execCommand('insertHTML', false, '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;margin:8px 0;font-size:12px;color:#dc2626;font-weight:700;display:flex;align-items:flex-start;gap:8px"><span style="font-size:16px">⚠️</span><span>내용을 입력하세요</span></div>'); } },
+            { icon: '📊', label: '2열 그리드', desc: '2열 레이아웃', action: () => { window._removeSlashChar(); document.execCommand('insertHTML', false, '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0"><div style="background:#f9fafb;padding:16px;border-radius:12px;border:1px solid #e5e7eb">왼쪽 열</div><div style="background:#f9fafb;padding:16px;border-radius:12px;border:1px solid #e5e7eb">오른쪽 열</div></div>'); } },
+            { icon: '📌', label: '접기/토글', desc: '접을 수 있는 블록', action: () => { window._removeSlashChar(); document.execCommand('insertHTML', false, '<details style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px;margin:8px 0"><summary style="font-weight:700;font-size:13px;color:#374151;cursor:pointer">클릭하면 열립니다</summary><div style="margin-top:8px;font-size:12px;color:#6b7280">숨겨진 내용을 입력하세요</div></details>'); } },
+        ];
+
+        window._showSlashMenu = (sel) => {
+            document.getElementById('slashMenu')?.remove();
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+
+            const menu = document.createElement('div');
+            menu.id = 'slashMenu';
+            menu.className = 'fixed z-[10000] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 w-72 max-h-[300px] overflow-y-auto';
+            menu.style.left = Math.max(8, rect.left) + 'px';
+            menu.style.top = (rect.bottom + 4) + 'px';
+
+            menu.innerHTML = `<div class="px-3 py-1 text-[9px] text-gray-400 font-bold uppercase">블록 타입 선택</div>` +
+                window._slashCommands.map((cmd, i) => `
+                    <button class="slash-cmd w-full text-left px-3 py-2 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all flex items-center gap-3 ${i === 0 ? 'bg-purple-50 dark:bg-purple-900/20' : ''}" data-idx="${i}" onclick="window._slashCommands[${i}].action();document.getElementById('slashMenu')?.remove()">
+                        <span class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm shrink-0">${cmd.icon}</span>
+                        <div><span class="text-xs font-bold text-gray-800 dark:text-gray-100">${cmd.label}</span><br><span class="text-[9px] text-gray-400">${cmd.desc}</span></div>
+                    </button>
+                `).join('');
+
+            document.body.appendChild(menu);
+
+            // 키보드 네비게이션
+            let activeIdx = 0;
+            const cmds = menu.querySelectorAll('.slash-cmd');
+            const highlightCmd = (idx) => {
+                cmds.forEach((c, i) => { c.classList.toggle('bg-purple-50', i === idx); c.classList.toggle('dark:bg-purple-900/20', i === idx); });
+            };
+
+            const handleKey = (e) => {
+                if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = (activeIdx + 1) % cmds.length; highlightCmd(activeIdx); cmds[activeIdx]?.scrollIntoView({ block: 'nearest' }); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = (activeIdx - 1 + cmds.length) % cmds.length; highlightCmd(activeIdx); cmds[activeIdx]?.scrollIntoView({ block: 'nearest' }); }
+                else if (e.key === 'Enter') { e.preventDefault(); cmds[activeIdx]?.click(); document.removeEventListener('keydown', handleKey); }
+                else if (e.key === 'Escape') { menu.remove(); document.removeEventListener('keydown', handleKey); }
+                else { 
+                    // 입력 중이면 필터링
+                    setTimeout(() => {
+                        const sel2 = window.getSelection();
+                        const node = sel2.anchorNode;
+                        const text = node?.textContent || '';
+                        const slashIdx = text.lastIndexOf('/');
+                        if (slashIdx < 0) { menu.remove(); document.removeEventListener('keydown', handleKey); return; }
+                        const filter = text.substring(slashIdx + 1, sel2.anchorOffset).toLowerCase();
+                        cmds.forEach((c, i) => {
+                            const label = window._slashCommands[i].label.toLowerCase();
+                            c.style.display = label.includes(filter) ? 'flex' : 'none';
+                        });
+                    }, 10);
+                }
+            };
+            document.addEventListener('keydown', handleKey);
+
+            // 외부 클릭 닫기
+            const closeSlash = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', closeSlash); document.removeEventListener('keydown', handleKey); } };
+            setTimeout(() => document.addEventListener('mousedown', closeSlash), 50);
+        };
+
+        window._removeSlashChar = () => {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            const node = sel.anchorNode;
+            if (node?.nodeType !== 3) return;
+            const text = node.textContent;
+            const slashIdx = text.lastIndexOf('/');
+            if (slashIdx >= 0) {
+                node.textContent = text.substring(0, slashIdx) + text.substring(sel.anchorOffset);
+            }
         };
 
         window._guideInsertBlock = (blockId) => {
@@ -3673,6 +3991,157 @@
                 await window._guideLoadGallery();
             } catch(e) {
                 window.showMsg('삭제 실패: ' + e.message, 'error');
+            }
+        };
+
+        // ─── 이미지 우클릭 컨텍스트 메뉴 ───
+        window._showImageContextMenu = (x, y, targetEl) => {
+            // 기존 메뉴 제거
+            document.getElementById('imgContextMenu')?.remove();
+
+            const menu = document.createElement('div');
+            menu.id = 'imgContextMenu';
+            menu.className = 'fixed z-[10000] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-1.5 min-w-[180px]';
+            menu.style.left = Math.min(x, window.innerWidth - 200) + 'px';
+            menu.style.top = Math.min(y, window.innerHeight - 160) + 'px';
+
+            const isImg = targetEl.tagName === 'IMG';
+
+            menu.innerHTML = `
+                <button onclick="window._guideReplaceWithImage(window._ctxTargetEl)" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all flex items-center gap-2">
+                    <i class="fas fa-upload text-purple-500 w-4"></i>${isImg ? '이미지 교체' : '이미지 삽입'}
+                </button>
+                <button onclick="window._guideReplaceWithGallery(window._ctxTargetEl)" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all flex items-center gap-2">
+                    <i class="fas fa-images text-blue-500 w-4"></i>갤러리에서 선택
+                </button>
+                <button onclick="window._guideReplaceWithUrl(window._ctxTargetEl)" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all flex items-center gap-2">
+                    <i class="fas fa-link text-green-500 w-4"></i>URL 직접 입력
+                </button>
+                ${isImg ? `
+                <div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                <button onclick="window._guideResizeImage(window._ctxTargetEl)" class="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all flex items-center gap-2">
+                    <i class="fas fa-expand-alt text-amber-500 w-4"></i>크기 조절
+                </button>
+                <button onclick="window._ctxTargetEl.closest('div')?.remove();document.getElementById('imgContextMenu')?.remove()" class="w-full text-left px-4 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all flex items-center gap-2">
+                    <i class="fas fa-trash w-4"></i>이미지 삭제
+                </button>` : ''}
+            `;
+
+            document.body.appendChild(menu);
+            window._ctxTargetEl = targetEl;
+
+            // 메뉴 닫기
+            const closeMenu = (e) => {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeMenu), 50);
+        };
+
+        // PC에서 파일 선택 → 업로드 → 교체
+        window._guideReplaceWithImage = (targetEl) => {
+            document.getElementById('imgContextMenu')?.remove();
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+            input.onchange = async () => {
+                const file = input.files[0];
+                if (!file) return;
+                window.showMsg('업로드 중...', 'info');
+                try {
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const safeName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+                    const { error } = await supaDb.storage.from('guide-images').upload(safeName, file, { cacheControl: '3600', upsert: false });
+                    if (error) throw error;
+                    const { data: { publicUrl } } = supaDb.storage.from('guide-images').getPublicUrl(safeName);
+                    window._applyImageToTarget(targetEl, publicUrl);
+                    window.showMsg('이미지 삽입 완료!', 'success');
+                } catch(e) {
+                    window.showMsg('업로드 실패: ' + e.message, 'error');
+                }
+            };
+            input.click();
+        };
+
+        // 갤러리에서 선택 → 교체
+        window._guideReplaceWithGallery = async (targetEl) => {
+            document.getElementById('imgContextMenu')?.remove();
+            const existing = document.getElementById('imgPickerModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'imgPickerModal';
+            modal.className = 'fixed inset-0 bg-black/50 z-[10001] flex items-center justify-center p-4';
+            modal.innerHTML = `<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100"><i class="fas fa-images mr-2 text-blue-500"></i>갤러리에서 선택</h3>
+                    <button onclick="document.getElementById('imgPickerModal').remove()" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" id="imgPickerGrid"><div class="text-center py-6 text-gray-400 text-xs"><i class="fas fa-spinner fa-spin"></i> 로딩 중...</div></div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            try {
+                const { data } = await supaDb.storage.from('guide-images').list('', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+                const { data: { publicUrl: baseUrl } } = supaDb.storage.from('guide-images').getPublicUrl('');
+                const images = (data || []).filter(f => f.name && !f.name.startsWith('.'));
+                const grid = document.getElementById('imgPickerGrid');
+                if (images.length === 0) {
+                    grid.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">업로드된 이미지가 없습니다.<br>먼저 이미지를 업로드해주세요.</div>';
+                    return;
+                }
+                grid.innerHTML = '<div class="grid grid-cols-3 gap-2">' + images.map(f => {
+                    const url = baseUrl.replace(/\/$/, '') + '/' + f.name;
+                    return `<div class="rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 hover:border-blue-400 cursor-pointer transition-all hover:shadow-md" onclick="window._applyImageToTarget(window._ctxTargetEl,'${url}');document.getElementById('imgPickerModal').remove();window.showMsg('이미지 삽입 완료!','success')">
+                        <img src="${url}" class="w-full h-20 object-cover" loading="lazy">
+                        <div class="p-1 text-center"><span class="text-[7px] text-gray-400 truncate block">${f.name}</span></div>
+                    </div>`;
+                }).join('') + '</div>';
+            } catch(e) {
+                document.getElementById('imgPickerGrid').innerHTML = `<div class="text-red-400 text-xs text-center py-6">로드 실패: ${e.message}</div>`;
+            }
+        };
+
+        // URL 직접 입력 → 교체
+        window._guideReplaceWithUrl = (targetEl) => {
+            document.getElementById('imgContextMenu')?.remove();
+            const url = prompt('이미지 URL을 입력하세요:');
+            if (url) {
+                window._applyImageToTarget(targetEl, url);
+                window.showMsg('이미지 삽입 완료!', 'success');
+            }
+        };
+
+        // 실제 교체 로직
+        window._applyImageToTarget = (targetEl, url) => {
+            if (targetEl.tagName === 'IMG') {
+                // 기존 이미지 교체
+                targetEl.src = url;
+            } else {
+                // 플레이스홀더 div → img로 교체
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.cssText = 'width:100%;height:200px;object-fit:cover';
+                img.alt = '이미지';
+                targetEl.innerHTML = '';
+                targetEl.style.background = 'none';
+                targetEl.style.display = 'block';
+                targetEl.style.padding = '0';
+                targetEl.appendChild(img);
+            }
+        };
+
+        // 이미지 크기 조절
+        window._guideResizeImage = (imgEl) => {
+            document.getElementById('imgContextMenu')?.remove();
+            const currentH = imgEl.style.height || '200px';
+            const newH = prompt('이미지 높이를 입력하세요 (예: 200px, 300px, auto):', currentH);
+            if (newH) {
+                imgEl.style.height = newH;
+                window.showMsg('크기 변경 완료', 'success');
             }
         };
 
