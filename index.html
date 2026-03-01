@@ -6413,26 +6413,22 @@
             if(!confirm(fixCount + '건의 본캐 정보를 수정하시겠습니까?')) return;
 
             window.showLoading(true);
-            window.setLoadProgress(20, '본캐 정보 수정 중...');
+            window.setLoadProgress(30, '본캐 정보 수정 중...');
 
-            const allMembers = appState.members.map(m => {
-                const fix = fixes[m.id];
-                return {
-                    name: m.name, guild: m.guild, role: m.role,
-                    class: m.class || '',
-                    isMain: fix?.isMain !== undefined ? fix.isMain : (m.isMain || false),
-                    mainCharName: fix?.mainCharName !== undefined ? fix.mainCharName : (m.mainCharName || ''),
-                    joinDate: m.joinDate || ''
-                };
-            });
-
-            window.setLoadProgress(50, '서버 전송 중...');
-            const success = await window.sendAction('save_members', { members: allMembers });
-            if(success) {
-                window.showMsg(fixCount + '건 본캐 정보 수정 완료!', 'success');
-                await window.fetchMembers();
-                window._checkMainCharErrors(); // 재검사
+            let done = 0;
+            for(const [id, fix] of Object.entries(fixes)) {
+                const updateData = {};
+                if(fix.mainCharName !== undefined) updateData.main_char_name = fix.mainCharName;
+                if(fix.isMain !== undefined) updateData.is_main = fix.isMain;
+                await supaDb.from('members').update(updateData).eq('id', id);
+                done++;
+                window.setLoadProgress(30 + Math.floor(60 * done / fixCount), `${done}/${fixCount} 수정 중...`);
             }
+
+            window.setLoadProgress(95, '데이터 갱신 중...');
+            window.showMsg(fixCount + '건 본캐 정보 수정 완료!', 'success');
+            await window.fetchMembers();
+            window._checkMainCharErrors();
             window.showLoading(false);
         };
 
@@ -6553,21 +6549,16 @@
             if(targets.length === 0) return window.showMsg('선택된 강등 대상이 없습니다.', 'error');
             if(!confirm(targets.length + '명의 아인슈페너 직위를 해제하시겠습니까?')) return;
             window.showLoading(true);
-            window.setLoadProgress(20, '강등 처리 중...');
-            const targetIds = new Set(targets.map(t => t.id));
-            const allMembers = appState.members.map(m => ({
-                name: m.name, guild: m.guild,
-                role: targetIds.has(m.id) ? (m.guild === '뚠카롱' ? '스콘' : '뚠스콘') : m.role,
-                class: m.class || '', isMain: m.isMain || false,
-                mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
-            }));
-            window.setLoadProgress(50, '서버 전송 중...');
-            const success = await window.sendAction('save_members', { members: allMembers });
-            if(success) {
-                window.showMsg(targets.length + '명 아인슈페너 강등 완료!', 'success');
-                await window.fetchMembers();
-                window.renderRoleAssign(document.getElementById('contentArea'));
+            let done = 0;
+            for(const t of targets) {
+                const newRole = t.guild === '뚠카롱' ? '스콘' : '뚠스콘';
+                await supaDb.from('members').update({ role: newRole }).eq('id', t.id);
+                done++;
+                window.setLoadProgress(20 + Math.floor(60 * done / targets.length), `${done}/${targets.length} 강등 중...`);
             }
+            window.showMsg(targets.length + '명 아인슈페너 강등 완료!', 'success');
+            await window.fetchMembers();
+            window.renderRoleAssign(document.getElementById('contentArea'));
             window.showLoading(false);
         };
 
@@ -6577,20 +6568,18 @@
             if(checkedIds.size === 0) return window.showMsg('강등할 멤버를 체크해주세요.', 'error');
             if(!confirm(checkedIds.size + '명의 아인슈페너 직위를 해제하시겠습니까?')) return;
             window.showLoading(true);
-            window.setLoadProgress(20, '강등 처리 중...');
-            const allMembers = appState.members.map(m => ({
-                name: m.name, guild: m.guild,
-                role: checkedIds.has(m.id) ? (m.guild === '뚠카롱' ? '스콘' : '뚠스콘') : m.role,
-                class: m.class || '', isMain: m.isMain || false,
-                mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
-            }));
-            window.setLoadProgress(50, '서버 전송 중...');
-            const success = await window.sendAction('save_members', { members: allMembers });
-            if(success) {
-                window.showMsg(checkedIds.size + '명 아인슈페너 강등 완료!', 'success');
-                await window.fetchMembers();
-                window.renderRoleAssign(document.getElementById('contentArea'));
+            let done = 0;
+            const ids = [...checkedIds];
+            for(const id of ids) {
+                const m = appState.members.find(mm => mm.id === id);
+                const newRole = m?.guild === '뚠카롱' ? '스콘' : '뚠스콘';
+                await supaDb.from('members').update({ role: newRole }).eq('id', id);
+                done++;
+                window.setLoadProgress(20 + Math.floor(60 * done / ids.length), `${done}/${ids.length} 강등 중...`);
             }
+            window.showMsg(ids.length + '명 아인슈페너 강등 완료!', 'success');
+            await window.fetchMembers();
+            window.renderRoleAssign(document.getElementById('contentArea'));
             window.showLoading(false);
         };
 
