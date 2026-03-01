@@ -4739,10 +4739,15 @@
    <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center"><i class="fas fa-exclamation-triangle text-red-500 text-xs"></i></div><span class="text-xs font-bold text-gray-700">penalty + history</span></div>
    <p class="text-[10px] text-gray-400">${(appState.penaltyHistory||[]).length} + ${(appState.history||[]).length}건</p>
    </div>
+   <div class="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+   <div class="flex items-center gap-3 mb-3"><div class="w-8 h-8 bg-purple-100 rounded-xl flex items-center justify-center"><i class="fas fa-book text-purple-500 text-xs"></i></div><span class="text-xs font-bold text-gray-700">member_records (영구기록)</span></div>
+   <p class="text-[10px] text-gray-400">영구 보존 데이터</p>
+   </div>
    </div>
    <div class="flex flex-wrap gap-3">
    <button onclick="window._backupAll()" id="backupAllBtn" class="px-8 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-xs shadow-lg hover:bg-emerald-600 transition-all"><i class="fas fa-file-archive mr-2"></i>전체 백업 (ZIP)</button>
    <button onclick="window._backupJSON()" class="px-6 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"><i class="fas fa-file-code mr-2"></i>단일 JSON</button>
+   <button onclick="window._backupCSV()" class="px-6 py-4 bg-blue-50 text-blue-600 rounded-2xl font-bold text-xs hover:bg-blue-100 transition-all"><i class="fas fa-file-csv mr-2"></i>CSV (구글시트용)</button>
    </div>
    </div>
    </div>
@@ -4989,11 +4994,97 @@
    penalty_history: await fetchAll('penalty_history', 'id'),
    operation_history: await fetchAll('operation_history', 'id'),
    events: await fetchAll('events', 'id'),
-   guide_pages: await fetchAll('guide_pages', 'id')
+   guide_pages: await fetchAll('guide_pages', 'id'),
+   member_records: await fetchAll('member_records', 'id')
    };
 
    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-archive mr-2"></i>전체 백업 (ZIP)'; }
    return backup;
+  };
+
+  window._toCSV = (data, columns) => {
+   if (!data || data.length === 0) return '';
+   const cols = columns || Object.keys(data[0]);
+   const escape = (v) => {
+   if (v === null || v === undefined) return '';
+   const s = String(v);
+   if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+   return '"' + s.replace(/"/g, '""') + '"';
+   }
+   return s;
+   };
+   const header = cols.map(escape).join(',');
+   const rows = data.map(row => cols.map(c => escape(row[c])).join(','));
+   return '\uFEFF' + header + '\n' + rows.join('\n');
+  };
+
+  window._backupCSV = async () => {
+   try {
+   window.showMsg('CSV 백업 생성 중...', 'info');
+   const backup = await window._backupFetchAll();
+   const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+
+   const csvFiles = {
+   members: {
+   data: backup.members,
+   cols: ['id','name','guild','role','class','level','is_main','main_char_name','join_date']
+   },
+   suro_scores: {
+   data: backup.suro_scores,
+   cols: ['id','member_id','period_id','score','date']
+   },
+   bail_history: {
+   data: backup.bail_history,
+   cols: ['id','member_name','guild','amount','reason','date','paid']
+   },
+   penalty_history: {
+   data: backup.penalty_history,
+   cols: ['id','member_name','guild','points','reason','date','is_private']
+   },
+   operation_history: {
+   data: backup.operation_history,
+   cols: ['id','date','category','name','content']
+   },
+   member_records: {
+   data: backup.member_records,
+   cols: ['id','join_date','nickname','job_class','suro_score','join_guild','prev_guild','join_source','join_category','join_reason','leave_category','leave_reason','leave_date','referrer','status','last_verified']
+   }
+   };
+
+   if (typeof JSZip !== 'undefined') {
+   const zip = new JSZip();
+   for (const [name, { data, cols }] of Object.entries(csvFiles)) {
+   if (data && data.length > 0) {
+   zip.file(`${name}.csv`, window._toCSV(data, cols));
+   }
+   }
+   const blob = await zip.generateAsync({ type: 'blob' });
+   const url = URL.createObjectURL(blob);
+   const a = document.createElement('a');
+   a.href = url;
+   a.download = `guild_backup_csv_${dateStr}.zip`;
+   a.click();
+   URL.revokeObjectURL(url);
+   window.showMsg('CSV ZIP 백업 완료!', 'success');
+   } else {
+   for (const [name, { data, cols }] of Object.entries(csvFiles)) {
+   if (data && data.length > 0) {
+   const csv = window._toCSV(data, cols);
+   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+   const url = URL.createObjectURL(blob);
+   const a = document.createElement('a');
+   a.href = url;
+   a.download = `${name}_${dateStr}.csv`;
+   a.click();
+   URL.revokeObjectURL(url);
+   await new Promise(r => setTimeout(r, 300));
+   }
+   }
+   window.showMsg('CSV 파일들 다운로드 완료!', 'success');
+   }
+   } catch(e) {
+   window.showMsg('CSV 백업 실패: ' + (e.message || e), 'error');
+   }
   };
 
   window._backupJSON = async () => {
