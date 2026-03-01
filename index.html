@@ -6203,25 +6203,22 @@
             const editBtn = isAdmin() ? `<button onclick="router('guide_edit')" class="text-[9px] font-bold text-pink-400 hover:text-pink-600 bg-pink-50 dark:bg-pink-900/30 px-2 py-1 rounded-lg transition-all"><i class="fas fa-edit mr-1"></i>편집</button>` : '';
 
             container.innerHTML = `<div class="flex flex-col gap-4 fade-in">
-                <!-- 길드 소개 -->
-                <div class="bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl p-6 relative overflow-hidden">
-                    <div class="absolute right-4 top-3">${editBtn}</div>
-                    <div class="relative z-10 home-guide-content">${introHtml || '<h3 class="text-lg font-black text-gray-800 dark:text-gray-100">뚠카롱에 오신 것을 환영합니다!</h3><p class="text-sm text-gray-500 mt-2">메이플스토리 리부트2 서버 길드 연합입니다.</p>'}</div>
+                <!-- 길드 소개 + 규칙 (DB HTML) -->
+                <div class="relative">
+                    <div class="absolute right-4 top-3 z-20">${editBtn}</div>
+                    <div class="home-guide-content">${introHtml || '<div class="bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 p-6 rounded-2xl"><h3 class="text-lg font-black text-gray-800 dark:text-gray-100">뚠카롱에 오신 것을 환영합니다!</h3><p class="text-sm text-gray-500 mt-2">메이플스토리 리부트2 서버 길드 연합입니다.</p></div>'}</div>
                 </div>
-
-                <!-- 통계 카드 -->
-                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">${statsCards}</div>
 
                 <!-- 직위 안내 -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
-                    <div class="absolute right-4 top-3">${editBtn}</div>
+                    <div class="absolute right-4 top-3 z-20">${editBtn}</div>
                     <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-medal text-pink-400"></i>직위 안내</h4>
                     <div class="home-guide-content">${ranksHtml || '<p class="text-xs text-gray-400">직위 정보가 없습니다.</p>'}</div>
                 </div>
 
                 <!-- 링크 모음 -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
-                    <div class="absolute right-4 top-3">${editBtn}</div>
+                    <div class="absolute right-4 top-3 z-20">${editBtn}</div>
                     <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-link text-pink-400"></i>링크 모음</h4>
                     <div class="home-guide-content">${linksHtml || '<p class="text-xs text-gray-400">링크 정보가 없습니다.</p>'}</div>
                 </div>
