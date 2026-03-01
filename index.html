@@ -2836,11 +2836,12 @@
                     const val = mEdits[f.key] !== undefined ? mEdits[f.key] : (f.key === 'isMain' ? (m.isMain ? 'TRUE' : 'FALSE') : (m[f.key] || ''));
                     const wasEdited = mEdits[f.key] !== undefined;
                     if (f.key === 'class') {
+                        const allJobs = [...new Set([...MAPLE_JOBS, ...appState.members.map(m => m.class).filter(c => c && !MAPLE_JOBS.includes(c))])];
                         html += `<td class="p-0 border-r border-gray-50 ${wasEdited ? 'bg-yellow-100' : ''}">
                             <select class="w-full px-0.5 py-1 text-[10px] font-bold outline-none bg-transparent border-0 focus:bg-blue-50 transition-colors cursor-pointer"
                                 onchange="window._sheetEditMember('${mid}','class',this.value)">
                                 <option value="">-</option>
-                                ${MAPLE_JOBS.map(j => `<option value="${j}" ${val === j ? 'selected' : ''}>${j}</option>`).join('')}
+                                ${allJobs.map(j => `<option value="${j}" ${val === j ? 'selected' : ''}>${j}</option>`).join('')}
                             </select>
                         </td>`;
                     } else if (f.key === 'role') {
@@ -4142,7 +4143,7 @@
         window.openEditModal = (id) => { 
             const m = appState.members.find(x => x.id == id); if(!m) return;
             document.getElementById('modalTitle').innerText = '멤버 정보 수정'; document.getElementById('editMemberId').value = m.id; document.getElementById('inputName').value = m.name; document.getElementById('inputName').disabled = true;
-            document.getElementById('inputClass').innerHTML = MAPLE_JOBS.map(j=>`<option value="${j}">${j}</option>`).join(''); document.getElementById('inputClass').value = m.class || '';
+            const allJobsForEdit = [...new Set([...MAPLE_JOBS, ...appState.members.map(m => m.class).filter(c => c && !MAPLE_JOBS.includes(c))])]; document.getElementById('inputClass').innerHTML = allJobsForEdit.map(j=>`<option value="${j}">${j}</option>`).join(''); document.getElementById('inputClass').value = m.class || '';
             document.getElementById('inputGuild').innerHTML = appState.guilds.map(g=>`<option value="${g.name}">${g.name}</option>`).join(''); document.getElementById('inputGuild').value = m.guild;
             onGuildSelectChange(m.guild); setTimeout(() => { document.getElementById('inputRole').value = m.role; }, 100);
             document.getElementById('inputIsMain').checked = m.isMain; document.getElementById('inputMainCharName').value = m.mainCharName || ''; toggleMainCharInput(); document.getElementById('memberModal').classList.remove('hidden');
