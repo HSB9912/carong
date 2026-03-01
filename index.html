@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>뚠카롱 길드 관리 시스템 (v9.1 Supabase)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -158,7 +159,7 @@
         /* ===== DARK MODE ===== */
         body.dark { background-color: #0f1117; color: #c9cdd4; }
         body.dark .bg-gray-50, body.dark main { background-color: #0f1117 !important; }
-        body.dark .bg-white { background-color: #1a1d27 !important; color: #c9cdd4; border-color: #2a2d3a !important; }
+        body.dark .bg-white { background-color: #1c1f2b !important; color: #c9cdd4; border-color: #2a2d3a !important; }
         body.dark aside { background-color: #14161e !important; border-color: #2a2d3a !important; }
         body.dark header { background-color: #14161e !important; border-color: #2a2d3a !important; }
         body.dark .border-gray-100, body.dark .border-gray-200, body.dark .border-gray-50 { border-color: #2a2d3a !important; }
@@ -244,6 +245,21 @@
         body.dark #mobileTabBar { background: #14161e !important; border-color: #2a2d3a !important; }
         body.dark .mobile-tab { color: #6b7280; }
         body.dark .mobile-tab.active { color: #f472b6; }
+        /* 홈 guide 콘텐츠 border 강제 제거 */
+        .home-guide-content .border,
+        .home-guide-content .border-gray-100,
+        .home-guide-content .border-gray-200,
+        .home-guide-content .border-pink-100,
+        .home-guide-content .border-pink-200,
+        .home-guide-content .border-red-100,
+        .home-guide-content .border-blue-100,
+        .home-guide-content [class*="border-"] {
+            border-color: #f3f4f6 !important;
+        }
+        body.dark .home-guide-content .border,
+        body.dark .home-guide-content [class*="border-"] {
+            border-color: #374151 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 h-screen overflow-hidden flex font-medium">
@@ -3502,11 +3518,23 @@
                 </div>`;
             }).join('');
 
+            if(!window._settingsTab) window._settingsTab = 'system';
+            const sTab = window._settingsTab;
+            const stabs = [
+                {id:'system', label:'시스템', icon:'fa-server'},
+                {id:'design', label:'디자인', icon:'fa-paint-brush'},
+                {id:'admin', label:'관리자', icon:'fa-user-shield'},
+                {id:'backup', label:'백업', icon:'fa-download'}
+            ];
+            const stabsHtml = stabs.map(t => `<button onclick="window._settingsTab='${t.id}';window.renderSettings(document.getElementById('contentArea'));${t.id==='admin'?'setTimeout(()=>window._loadAdminList(),100)':''}" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${sTab===t.id ? 'bg-pink-500 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}"><i class="fas ${t.icon} mr-1"></i>${t.label}</button>`).join('');
+
             container.innerHTML = `
-            <div class="max-w-4xl fade-in space-y-6">
+            <div class="fade-in space-y-4">
+                <div class="flex gap-2 flex-wrap">${stabsHtml}</div>
+                <div class="${sTab !== 'system' ? 'hidden' : ''}">
                 <!-- 시스템 설정 -->
-                <div class="bg-white p-8 lg:p-12 rounded-[3rem] border border-gray-100 shadow-sm font-bold">
-                    <h3 class="text-xl mb-8 text-gray-800">시스템 설정</h3>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 font-bold">
+                    <h3 class="text-lg mb-6 text-gray-800 dark:text-gray-100">시스템 설정</h3>
                     <div class="space-y-6">
                         <div class="space-y-2">
                             <label class="text-[10px] font-bold text-gray-400 uppercase">Supabase Project URL</label>
@@ -3518,9 +3546,11 @@
                         </div>
                     </div>
                 </div>
+                </div>
 
+                <div class="${sTab !== 'design' ? 'hidden' : ''}">
                 <!-- ★ 디자인 설정 ★ -->
-                <div class="bg-white p-8 lg:p-12 rounded-[3rem] border border-pink-100 shadow-sm font-bold">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 font-bold">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="w-10 h-10 bg-pink-100 rounded-2xl flex items-center justify-center"><i class="fas fa-palette text-pink-500"></i></div>
                         <div><h3 class="text-xl text-gray-800">디자인 설정</h3><p class="text-[10px] text-gray-400">퍼블릭 페이지에 표시되는 디자인 요소를 수정합니다</p></div>
@@ -3581,9 +3611,11 @@
                         <button onclick="window._cfgReset()" class="px-6 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"><i class="fas fa-undo mr-2"></i>초기화</button>
                     </div>
                 </div>
+                </div>
 
+                <div class="${sTab !== 'admin' ? 'hidden' : ''}">
                 <!-- ★ 관리자 계정 관리 ★ -->
-                <div class="bg-white p-8 lg:p-12 rounded-[3rem] border border-blue-100 shadow-sm font-bold">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 font-bold">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center"><i class="fas fa-user-shield text-blue-500"></i></div>
                         <div><h3 class="text-xl text-gray-800">관리자 계정 관리</h3><p class="text-[10px] text-gray-400">Google 로그인 후 승인된 사용자만 접근할 수 있습니다</p></div>
@@ -3594,9 +3626,11 @@
                         <div class="text-center py-4 text-gray-300"><i class="fas fa-spinner fa-spin mr-1"></i> 로딩 중...</div>
                     </div>
                 </div>
+                </div>
 
+                <div class="${sTab !== 'backup' ? 'hidden' : ''}">
                 <!-- 데이터 백업 -->
-                <div class="bg-white p-8 lg:p-12 rounded-[3rem] border border-gray-100 shadow-sm font-bold">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 font-bold">
                     <h3 class="text-xl mb-3 text-gray-800"><i class="fas fa-download mr-3 text-emerald-500"></i>데이터 백업</h3>
                     <p class="text-xs text-gray-400 mb-8">전체 DB를 JSON 파일로 다운로드합니다. 테이블별 개별 파일이 ZIP으로 묶여 저장됩니다.</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -3621,6 +3655,7 @@
                         <button onclick="window._backupAll()" id="backupAllBtn" class="px-8 py-4 bg-emerald-500 text-white rounded-2xl font-bold text-xs shadow-lg hover:bg-emerald-600 transition-all"><i class="fas fa-file-archive mr-2"></i>전체 백업 (ZIP)</button>
                         <button onclick="window._backupJSON()" class="px-6 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold text-xs hover:bg-gray-200 transition-all"><i class="fas fa-file-code mr-2"></i>단일 JSON</button>
                     </div>
+                </div>
                 </div>
             </div>`;
         };
@@ -6117,6 +6152,18 @@
                 return html;
             };
 
+            // border 클래스 strip (DB HTML에 하드코딩된 border 제거)
+            const stripBorder = (html) => {
+                if(!html) return '';
+                return html.replace(/\bborder\b/g, '')
+                    .replace(/\bborder-gray-100\b/g, '')
+                    .replace(/\bborder-gray-200\b/g, '')
+                    .replace(/\bborder-pink-100\b/g, '')
+                    .replace(/\bborder-pink-200\/50\b/g, '')
+                    .replace(/\bborder-red-100\b/g, '')
+                    .replace(/\bborder-blue-100\b/g, '');
+            };
+
             // 가이드 3개 병렬 로드
             let introHtml = '', ranksHtml = '', linksHtml = '';
             try {
@@ -6125,9 +6172,9 @@
                     supaDb.from('guide_pages').select('content').eq('slug','ranks').maybeSingle(),
                     supaDb.from('guide_pages').select('content').eq('slug','links').maybeSingle()
                 ]);
-                introHtml = replacePlaceholders(introRes.data?.content || '');
-                ranksHtml = replacePlaceholders(ranksRes.data?.content || '');
-                linksHtml = replacePlaceholders(linksRes.data?.content || '');
+                introHtml = stripBorder(replacePlaceholders(introRes.data?.content || ''));
+                ranksHtml = stripBorder(replacePlaceholders(ranksRes.data?.content || ''));
+                linksHtml = stripBorder(replacePlaceholders(linksRes.data?.content || ''));
             } catch(e) { console.error('Guide load error:', e); }
 
             // 통계 카드
@@ -6159,7 +6206,7 @@
                 <!-- 길드 소개 -->
                 <div class="bg-gradient-to-br from-pink-50 via-rose-50 to-purple-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl p-6 relative overflow-hidden">
                     <div class="absolute right-4 top-3">${editBtn}</div>
-                    <div class="relative z-10">${introHtml || '<h3 class="text-lg font-black text-gray-800 dark:text-gray-100">뚠카롱에 오신 것을 환영합니다!</h3><p class="text-sm text-gray-500 mt-2">메이플스토리 리부트2 서버 길드 연합입니다.</p>'}</div>
+                    <div class="relative z-10 home-guide-content">${introHtml || '<h3 class="text-lg font-black text-gray-800 dark:text-gray-100">뚠카롱에 오신 것을 환영합니다!</h3><p class="text-sm text-gray-500 mt-2">메이플스토리 리부트2 서버 길드 연합입니다.</p>'}</div>
                 </div>
 
                 <!-- 통계 카드 -->
@@ -6169,14 +6216,14 @@
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
                     <div class="absolute right-4 top-3">${editBtn}</div>
                     <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-medal text-pink-400"></i>직위 안내</h4>
-                    <div>${ranksHtml || '<p class="text-xs text-gray-400">직위 정보가 없습니다.</p>'}</div>
+                    <div class="home-guide-content">${ranksHtml || '<p class="text-xs text-gray-400">직위 정보가 없습니다.</p>'}</div>
                 </div>
 
                 <!-- 링크 모음 -->
                 <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 relative">
                     <div class="absolute right-4 top-3">${editBtn}</div>
                     <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-link text-pink-400"></i>링크 모음</h4>
-                    <div>${linksHtml || '<p class="text-xs text-gray-400">링크 정보가 없습니다.</p>'}</div>
+                    <div class="home-guide-content">${linksHtml || '<p class="text-xs text-gray-400">링크 정보가 없습니다.</p>'}</div>
                 </div>
 
                 <!-- 최근 일정 -->
@@ -6185,70 +6232,127 @@
                     <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">${eventsHtml}</div>
                 </div>` : ''}
             </div>`;
+            // guide DB HTML에 하드코딩된 border를 inline style로 강제 제거
+            setTimeout(() => {
+                container.querySelectorAll('.home-guide-content, .home-guide-content *').forEach(el => {
+                    el.style.borderColor = 'transparent';
+                    el.style.borderWidth = '0';
+                });
+            }, 50);
         };
 
         // --- 직위 반영 (관리자 전용 페이지) ---
         window.renderRoleAssign = (container) => {
-            const guilds = SITE_CONFIG?.guilds || [{name:'뚠카롱'},{name:'뚱카롱'}];
-            const mainGuilds = guilds.filter(g => ['뚠카롱','뚱카롱'].includes(g.name));
-
-            container.innerHTML = `<div class="flex flex-col gap-4 fade-in max-w-4xl mx-auto">
-                <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 text-xs font-bold text-green-700 dark:text-green-300">
+            container.innerHTML = `<div class="flex flex-col gap-4 fade-in">
+                <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-xs font-bold text-amber-700 dark:text-amber-300">
                     <i class="fas fa-lock mr-1"></i> 관리자 전용 — 수로 점수 기반 직위 자동 반영
                 </div>
 
                 <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
-                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-medal text-amber-500"></i>뚠카롱 직위 자동 부여</h4>
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-medal text-amber-500"></i>직위 자동 부여</h4>
                     <p class="text-xs text-gray-500 mb-3">최근 수로 점수 기준으로 직위를 산정합니다. 마카롱/다쿠아즈 제외, 본캐만 대상.</p>
                     <div class="flex gap-2 flex-wrap">
-                        <button onclick="window.autoAssignRoles()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-magic mr-1"></i>뚠카롱 직위 산정</button>
-                        <button onclick="window.autoAssignRolesDdung()" class="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-magic mr-1"></i>뚱카롱 직위 산정</button>
+                        <button onclick="window.autoAssignRoles()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-magic mr-1"></i>뚠카롱 직위 산정</button>
+                        <button onclick="window.autoAssignRolesDdung()" class="px-4 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-magic mr-1"></i>뚱카롱 직위 산정</button>
                     </div>
                 </div>
 
                 <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5">
-                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-coffee text-purple-500"></i>아인슈페너 강등 감지</h4>
-                    <p class="text-xs text-gray-500 mb-3">본캐가 크로칸슈 미달인 아인슈페너 멤버를 자동 감지합니다. (아인슈페너는 신청제 — 자동 부여 ❌, 강등만 감지)</p>
-                    <button onclick="window._checkEinDemotion()" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg"><i class="fas fa-search mr-1"></i>강등 대상 검사</button>
+                    <h4 class="text-sm font-black text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2"><i class="fas fa-coffee text-purple-500"></i>아인슈페너 강등 검사</h4>
+                    <p class="text-xs text-gray-500 mb-3">본캐가 크로칸슈 미달인 아인슈페너 멤버를 감지하고, 바로 강등할 수 있습니다. (아인슈페너는 신청제 → 자동 부여 ❌, 강등만)</p>
+                    <button onclick="window._checkEinDemotion()" class="px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-search mr-1"></i>강등 대상 검사</button>
                     <div id="einDemotionResult" class="mt-3"></div>
                 </div>
 
                 <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                     <i class="fas fa-info-circle mr-1"></i>
-                    <strong>변경 컬럼은 드롭다운</strong>으로 직위를 수동 수정 가능 · <strong>체크박스 해제</strong>로 특정 멤버 제외 가능
+                    직위 산정 후 <strong>변경 컬럼 드롭다운</strong>으로 수동 수정 가능 · <strong>체크박스 해제</strong>로 특정 멤버 제외
                 </div>
             </div>`;
         };
 
-        // 아인슈페너 강등 대상 검사
+        // 아인슈페너 강등 대상 검사 + 실제 강등 실행
         window._checkEinDemotion = () => {
             const einMembers = appState.members.filter(m => m.role === '아인슈페너');
             if(einMembers.length === 0) {
-                document.getElementById('einDemotionResult').innerHTML = '<p class="text-xs text-gray-400">아인슈페너 멤버가 없습니다.</p>';
+                document.getElementById('einDemotionResult').innerHTML = '<p class="text-xs text-gray-400 mt-2">아인슈페너 멤버가 없습니다.</p>';
                 return;
             }
             const demotions = [];
+            const croc = ['크라운','파르페','티라미슈','크로칸슈'];
             einMembers.forEach(m => {
                 const mainName = m.mainCharName || '';
                 if(!mainName) return;
                 const mainChar = appState.members.find(mc => mc.name === mainName && mc.guild === '뚠카롱');
                 if(!mainChar) return;
-                const croc = ['크라운','파르페','티라미슈','크로칸슈'];
                 if(!croc.includes(mainChar.role)) {
-                    demotions.push({ name: m.name, mainName, mainRole: mainChar.role });
+                    demotions.push({ name: m.name, guild: m.guild, mainName, mainRole: mainChar.role, id: m.id });
                 }
             });
             const el = document.getElementById('einDemotionResult');
             if(demotions.length === 0) {
-                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600"><i class="fas fa-check mr-1"></i>강등 대상 없음 — 모든 아인슈페너의 본캐가 크로칸슈 이상입니다.</div>';
-            } else {
-                const rows = demotions.map(d => `<tr class="border-b border-red-100 dark:border-red-900"><td class="py-2 px-3 text-xs font-bold text-red-600">${d.name}</td><td class="py-2 px-3 text-xs text-gray-500">본캐: ${d.mainName}</td><td class="py-2 px-3 text-xs font-bold text-gray-400">${d.mainRole}</td></tr>`).join('');
-                el.innerHTML = `<div class="bg-red-50 dark:bg-red-900/20 rounded-xl overflow-hidden border border-red-200 dark:border-red-800">
-                    <div class="p-3 bg-red-100 dark:bg-red-900/40 text-xs font-bold text-red-700 dark:text-red-300"><i class="fas fa-exclamation-triangle mr-1"></i>강등 대상 ${demotions.length}명 — 본캐 크로칸슈 미달</div>
-                    <table class="w-full"><tbody>${rows}</tbody></table>
-                    <div class="p-3 text-[10px] text-red-400">DB 시트에서 직접 직위를 변경하거나, 뚱카롱 직위 산정을 실행하세요.</div>
-                </div>`;
+                el.innerHTML = '<div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-xs font-bold text-green-600 mt-2"><i class="fas fa-check mr-1"></i>강등 대상 없음 — 모든 아인슈페너의 본캐가 크로칸슈 이상입니다.</div>';
+                return;
             }
+            // 길드별 분류
+            const byGuild = {};
+            demotions.forEach(d => { if(!byGuild[d.guild]) byGuild[d.guild] = []; byGuild[d.guild].push(d); });
+
+            let html = `<div class="bg-red-50 dark:bg-red-900/20 rounded-xl overflow-hidden border border-red-200 dark:border-red-800 mt-2">
+                <div class="p-3 bg-red-100 dark:bg-red-900/40 text-xs font-bold text-red-700 dark:text-red-300"><i class="fas fa-exclamation-triangle mr-1"></i>강등 대상 ${demotions.length}명</div>`;
+
+            Object.keys(byGuild).sort().forEach(guild => {
+                html += `<div class="px-3 py-2 bg-red-50/50 dark:bg-red-900/10 text-[10px] font-bold text-red-500 border-b border-red-100 dark:border-red-800">${guild} (${byGuild[guild].length}명)</div>`;
+                byGuild[guild].forEach(d => {
+                    html += `<div class="flex items-center gap-3 px-3 py-2 border-b border-red-50 dark:border-red-900 text-xs">
+                        <input type="checkbox" checked data-ein-id="${d.id}" class="ein-chk w-4 h-4 accent-red-500 cursor-pointer">
+                        <span class="font-bold text-red-600 dark:text-red-400 w-32">${d.name}</span>
+                        <span class="text-gray-400">본캐: ${d.mainName}</span>
+                        <span class="text-gray-400">(${d.mainRole})</span>
+                    </div>`;
+                });
+            });
+
+            html += `<div class="p-3 flex justify-between items-center bg-red-50 dark:bg-red-900/20">
+                <span class="text-[10px] text-red-400">체크된 멤버의 직위를 뚠스콘으로 강등합니다.</span>
+                <button onclick="window._executeEinDemotion()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold transition-all shadow"><i class="fas fa-arrow-down mr-1"></i>강등 실행</button>
+            </div></div>`;
+
+            el.innerHTML = html;
+            window._einDemotions = demotions;
+        };
+
+        window._executeEinDemotion = async () => {
+            const allDemotions = window._einDemotions || [];
+            const checkedIds = new Set();
+            document.querySelectorAll('.ein-chk:checked').forEach(c => checkedIds.add(c.dataset.einId));
+            const targets = allDemotions.filter(d => checkedIds.has(d.id));
+            if(targets.length === 0) return window.showMsg('선택된 강등 대상이 없습니다.', 'error');
+
+            if(!confirm(targets.length + '명의 아인슈페너를 뚠스콘으로 강등하시겠습니까?')) return;
+
+            window.showLoading(true);
+            window.setLoadProgress(20, '강등 처리 중...');
+
+            const allMembers = appState.members.map(m => {
+                const target = targets.find(t => t.id === m.id);
+                return {
+                    name: m.name, guild: m.guild,
+                    role: target ? '뚠스콘' : m.role,
+                    class: m.class || '', isMain: m.isMain || false,
+                    mainCharName: m.mainCharName || '', joinDate: m.joinDate || ''
+                };
+            });
+
+            window.setLoadProgress(50, '서버 전송 중...');
+            const success = await window.sendAction('save_members', { members: allMembers });
+            window.setLoadProgress(80, '데이터 갱신 중...');
+            if(success) {
+                window.showMsg(targets.length + '명 아인슈페너 강등 완료!', 'success');
+                await window.fetchMembers();
+                window.renderRoleAssign(document.getElementById('contentArea'));
+            }
+            window.showLoading(false);
         };
 
         window.renderGuide = async (container, section) => {
