@@ -4376,98 +4376,163 @@
             } catch(e) { window.showMsg('삭제 실패: ' + e.message, 'error'); }
         };
 
-        // ─── 상태 일괄 확인 (members 테이블 대조) ───
+        // ─── 상태 일괄 확인 (Nexon API 기반) ───
         window._recSyncStatus = async () => {
             const st = window._recordsState;
             if (st.data.length === 0) return window.showMsg('기록 데이터가 없습니다', 'error');
+            const apiKey = window._getNexonApiKey();
+            if (!apiKey) return window.showMsg('설정에서 Nexon API Key를 먼저 입력해주세요', 'error');
 
-            window.showMsg('현재 길드원 목록과 대조 중...', 'info');
+            // 현재 길드원 목록 가져오기
+            const { data: currentMembers } = await supaDb.from('members').select('name, guild');
+            const currentNames = new Set((currentMembers || []).map(m => m.name));
 
-            try {
-                // 현재 길드에 있는 모든 멤버 이름 가져오기
-                const { data: currentMembers, error } = await supaDb.from('members').select('name, guild');
-                if (error) throw error;
+            // active인데 현재 멤버에 없는 사람
+            const activeRecords = st.data.filter(r => r.status === 'active');
+            const missingRecords = activeRecords.filter(r => !currentNames.has(r.nickname));
 
-                const currentNames = new Set((currentMembers || []).map(m => m.name));
-                
-                // active인데 현재 멤버에 없는 사람 찾기
-                const activeRecords = st.data.filter(r => r.status === 'active');
-                const missingRecords = activeRecords.filter(r => !currentNames.has(r.nickname));
-
-                if (missingRecords.length === 0) {
-                    window.showMsg('모든 재직자가 현재 길드원 목록에 있습니다! ✅', 'success');
-                    return;
-                }
-
-                // 확인 모달
-                const existing = document.getElementById('recSyncModal');
-                if (existing) existing.remove();
-
-                // 현재 멤버 중 record에 없는 사람 (신규이거나 닉변 후 이름) 찾기
-                const recordNames = new Set(st.data.map(r => r.nickname));
-                const unmatchedMembers = (currentMembers || []).filter(m => !recordNames.has(m.name));
-
-                const modal = document.createElement('div');
-                modal.id = 'recSyncModal';
-                modal.className = 'fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4';
-                modal.innerHTML = `
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-                    <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
-                        <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100"><i class="fas fa-user-check mr-2 text-blue-500"></i>상태 확인 결과</h3>
-                        <button onclick="document.getElementById('recSyncModal').remove()" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="p-4 shrink-0 space-y-2">
-                        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-xs">
-                            <p class="font-bold text-amber-700 dark:text-amber-400"><i class="fas fa-exclamation-triangle mr-1"></i>재직인데 길드원 목록에 없는 사람: <b class="text-lg">${missingRecords.length}명</b></p>
-                            <p class="text-amber-600 dark:text-amber-500 mt-1">각 사람마다 <b>탈퇴/닉변/유지</b>를 선택하세요. 닉변이면 현재 길드원 중 새 닉네임을 선택해주세요.</p>
-                        </div>
-                        ${unmatchedMembers.length > 0 ? `
-                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs">
-                            <p class="font-bold text-blue-700 dark:text-blue-400"><i class="fas fa-info-circle mr-1"></i>기록에 없는 현재 길드원: ${unmatchedMembers.length}명</p>
-                            <p class="text-blue-500 mt-1">이 사람들이 닉변 후 이름일 수 있습니다.</p>
-                        </div>` : ''}
-                    </div>
-                    <div class="flex-1 overflow-y-auto px-4 pb-2">
-                        <table class="w-full text-[11px]">
-                            <thead class="text-[9px] text-gray-500 font-bold sticky top-0 bg-white dark:bg-gray-800 z-10"><tr>
-                                <th class="p-1.5 text-left">기록 닉네임</th><th class="p-1.5">직업</th><th class="p-1.5">가입길드</th><th class="p-1.5">가입일</th><th class="p-1.5 text-left w-48">처리</th>
-                            </tr></thead>
-                            <tbody>${missingRecords.map(r => `
-                                <tr class="border-t border-gray-100 dark:border-gray-700 sync-row" data-id="${r.id}" data-name="${r.nickname}">
-                                    <td class="p-1.5 font-bold text-gray-800 dark:text-gray-100">${r.nickname}</td>
-                                    <td class="p-1.5 text-gray-500 text-center">${r.job_class || '-'}</td>
-                                    <td class="p-1.5 text-center"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${r.join_guild === '뚠카롱' ? 'bg-pink-100 text-pink-600' : 'bg-rose-100 text-rose-600'}">${r.join_guild}</span></td>
-                                    <td class="p-1.5 text-gray-400 font-mono text-[10px] text-center">${r.join_date || '-'}</td>
-                                    <td class="p-1.5">
-                                        <div class="flex items-center gap-1">
-                                            <select class="sync-action px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-[10px] font-bold outline-none" onchange="this.closest('tr').querySelector('.nick-select').style.display=this.value==='rename'?'block':'none'">
-                                                <option value="leave">🔴 탈퇴</option>
-                                                <option value="rename">✏️ 닉변</option>
-                                                <option value="skip">⏭ 유지</option>
-                                            </select>
-                                            <select class="nick-select px-2 py-1 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg text-[10px] font-bold outline-none" style="display:none;max-width:120px">
-                                                <option value="">새 닉네임 선택...</option>
-                                                ${unmatchedMembers.map(m => `<option value="${m.name}">${m.name} (${m.guild})</option>`).join('')}
-                                            </select>
-                                        </div>
-                                    </td>
-                                </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-2 shrink-0 flex-wrap">
-                        <button onclick="window._recApplySync()" id="syncApplyBtn" class="px-5 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-bold shadow hover:bg-purple-600 transition-all"><i class="fas fa-check mr-1"></i>일괄 적용</button>
-                        <button onclick="document.querySelectorAll('.sync-action').forEach(s=>s.value='leave')" class="px-3 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-all">전체 탈퇴</button>
-                        <button onclick="document.querySelectorAll('.sync-action').forEach(s=>s.value='skip')" class="px-3 py-2 bg-gray-100 text-gray-500 rounded-xl text-[10px] font-bold hover:bg-gray-200 transition-all">전체 유지</button>
-                        <button onclick="document.getElementById('recSyncModal').remove()" class="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold ml-auto">닫기</button>
-                    </div>
-                </div>`;
-                document.body.appendChild(modal);
-                modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-            } catch(e) {
-                window.showMsg('확인 실패: ' + e.message, 'error');
+            if (missingRecords.length === 0) {
+                window.showMsg('모든 재직자가 현재 길드원 목록에 있습니다! ✅', 'success');
+                return;
             }
+
+            // 모달 생성
+            const existing = document.getElementById('recSyncModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'recSyncModal';
+            modal.className = 'fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4';
+            modal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+                <div class="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100"><i class="fas fa-user-check mr-2 text-blue-500"></i>상태 확인 <span class="text-gray-400 font-mono text-[10px]">${missingRecords.length}명 조회 필요</span></h3>
+                    <button onclick="document.getElementById('recSyncModal').remove()" class="w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-4 shrink-0">
+                    <div class="flex gap-2 items-center">
+                        <button onclick="window._recApiCheck()" id="recApiCheckBtn" class="px-5 py-2.5 bg-blue-500 text-white rounded-xl text-xs font-bold shadow hover:bg-blue-600 transition-all"><i class="fas fa-search mr-1"></i>API로 ${missingRecords.length}명 일괄 조회</button>
+                        <div id="recApiProgress" class="text-[11px] text-gray-400 font-bold"></div>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto px-4 pb-2" id="recSyncBody">
+                    <table class="w-full text-[11px]">
+                        <thead class="text-[9px] text-gray-500 font-bold sticky top-0 bg-white dark:bg-gray-800 z-10"><tr>
+                            <th class="p-1.5 text-left">상태</th>
+                            <th class="p-1.5 text-left">기록 닉네임</th>
+                            <th class="p-1.5">직업</th>
+                            <th class="p-1.5">가입길드</th>
+                            <th class="p-1.5 text-left">API 결과</th>
+                            <th class="p-1.5 text-left w-44">처리</th>
+                        </tr></thead>
+                        <tbody id="recSyncRows">${missingRecords.map(r => `
+                            <tr class="border-t border-gray-100 dark:border-gray-700 sync-row" data-id="${r.id}" data-name="${r.nickname}">
+                                <td class="p-1.5 sync-status"><span class="text-gray-300 text-[10px]">⏳ 대기</span></td>
+                                <td class="p-1.5 font-bold text-gray-800 dark:text-gray-100">${r.nickname}</td>
+                                <td class="p-1.5 text-gray-500 text-center">${r.job_class || '-'}</td>
+                                <td class="p-1.5 text-center"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${r.join_guild === '뚠카롱' ? 'bg-pink-100 text-pink-600' : 'bg-rose-100 text-rose-600'}">${r.join_guild}</span></td>
+                                <td class="p-1.5 sync-api-result text-gray-400 text-[10px]">-</td>
+                                <td class="p-1.5 sync-action-cell"></td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-2 shrink-0" id="recSyncFooter">
+                    <button onclick="window._recApplySync()" id="syncApplyBtn" class="px-5 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-bold shadow hover:bg-purple-600 transition-all hidden"><i class="fas fa-check mr-1"></i>일괄 적용</button>
+                    <button onclick="document.getElementById('recSyncModal').remove()" class="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-bold ml-auto">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            
+            // 조회 대상 저장
+            window._syncMissingRecords = missingRecords;
+        };
+
+        // API 일괄 조회
+        window._recApiCheck = async () => {
+            const records = window._syncMissingRecords;
+            if (!records) return;
+            const btn = document.getElementById('recApiCheckBtn');
+            const prog = document.getElementById('recApiProgress');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>조회 중...'; }
+
+            // 우리 길드 이름 목록
+            const ourGuilds = new Set(['뚠카롱', '뚱카롱', '밤카롱', '별카롱', '달카롱', '꿀카롱']);
+            const rows = document.querySelectorAll('.sync-row');
+            let done = 0;
+
+            for (let i = 0; i < records.length; i++) {
+                const r = records[i];
+                const row = rows[i];
+                if (!row) continue;
+                const statusCell = row.querySelector('.sync-status');
+                const apiCell = row.querySelector('.sync-api-result');
+                const actionCell = row.querySelector('.sync-action-cell');
+
+                if (prog) prog.textContent = `${done + 1}/${records.length} 조회 중... (${r.nickname})`;
+
+                try {
+                    const info = await window._getCharInfo(r.nickname);
+                    await new Promise(ok => setTimeout(ok, 120)); // API 레이트 리밋
+
+                    if (!info) {
+                        // 캐릭터 없음 → 닉변 의심
+                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-lg text-[9px] font-bold">🔄 닉변 의심</span>';
+                        apiCell.innerHTML = '<span class="text-amber-500">캐릭터 미존재 (닉변 가능성)</span>';
+                        actionCell.innerHTML = `
+                            <div class="flex items-center gap-1">
+                                <select class="sync-action px-2 py-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-[10px] font-bold outline-none" onchange="this.closest('tr').querySelector('.nick-input').style.display=this.value==='rename'?'block':'none'">
+                                    <option value="rename" selected>✏️ 닉변</option>
+                                    <option value="leave">🔴 탈퇴</option>
+                                    <option value="skip">⏭ 유지</option>
+                                </select>
+                                <input type="text" class="nick-input px-2 py-1 bg-white dark:bg-gray-700 border border-amber-300 dark:border-amber-700 rounded-lg text-[10px] font-bold outline-none w-24 focus:ring-1 focus:ring-amber-400" placeholder="새 닉네임">
+                            </div>`;
+                    } else if (ourGuilds.has(info.guild)) {
+                        // 우리 길드에 있음 → 닉변해서 다른 이름으로 있을 수 있지만, 이건 현재 이름이 우리 길드
+                        // 사실 이 케이스는 거의 없음 (이미 currentNames에 있을 것)
+                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg text-[9px] font-bold">✅ 재직</span>';
+                        apiCell.innerHTML = `<span class="text-emerald-600">${info.guild} (Lv.${info.level} ${info.class})</span>`;
+                        actionCell.innerHTML = `<select class="sync-action px-2 py-1 bg-gray-50 dark:bg-gray-700 border rounded-lg text-[10px] font-bold outline-none"><option value="skip" selected>⏭ 유지</option><option value="leave">🔴 탈퇴</option></select><input type="text" class="nick-input hidden">`;
+                    } else if (info.guild) {
+                        // 다른 길드에 있음 → 탈퇴 확정
+                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg text-[9px] font-bold">🔴 탈퇴 확정</span>';
+                        apiCell.innerHTML = `<span class="text-red-500">→ <b>${info.guild}</b> 이동 (Lv.${info.level} ${info.class})</span>`;
+                        actionCell.innerHTML = `<select class="sync-action px-2 py-1 bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg text-[10px] font-bold outline-none"><option value="leave" selected>🔴 탈퇴</option><option value="skip">⏭ 유지</option></select><input type="text" class="nick-input hidden">`;
+                    } else {
+                        // 길드 없음 → 탈퇴 의심
+                        statusCell.innerHTML = '<span class="px-2 py-0.5 bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 rounded-lg text-[9px] font-bold">🟠 탈퇴 의심</span>';
+                        apiCell.innerHTML = `<span class="text-orange-500">길드 없음 (Lv.${info.level} ${info.class})</span>`;
+                        actionCell.innerHTML = `<select class="sync-action px-2 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 rounded-lg text-[10px] font-bold outline-none"><option value="leave" selected>🔴 탈퇴</option><option value="skip">⏭ 유지</option></select><input type="text" class="nick-input hidden">`;
+                    }
+                } catch(e) {
+                    statusCell.innerHTML = '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-[9px] font-bold">❓ 오류</span>';
+                    apiCell.innerHTML = `<span class="text-gray-400">${e.message}</span>`;
+                    actionCell.innerHTML = `
+                        <div class="flex items-center gap-1">
+                            <select class="sync-action px-2 py-1 bg-gray-50 dark:bg-gray-700 border rounded-lg text-[10px] font-bold outline-none">
+                                <option value="skip" selected>⏭ 유지</option>
+                                <option value="rename">✏️ 닉변</option>
+                                <option value="leave">🔴 탈퇴</option>
+                            </select>
+                            <input type="text" class="nick-input px-2 py-1 bg-white dark:bg-gray-700 border rounded-lg text-[10px] font-bold outline-none w-24 hidden" placeholder="새 닉네임">
+                        </div>`;
+                }
+                done++;
+            }
+
+            if (prog) prog.textContent = `✅ ${done}명 조회 완료`;
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i>재조회'; }
+            document.getElementById('syncApplyBtn')?.classList.remove('hidden');
+
+            // 닉변 선택 시 입력칸 토글
+            document.querySelectorAll('.sync-action').forEach(sel => {
+                sel.onchange = function() {
+                    const input = this.closest('tr').querySelector('.nick-input');
+                    if (input) input.style.display = this.value === 'rename' ? 'block' : 'none';
+                };
+            });
         };
 
         window._recApplySync = async () => {
@@ -4482,30 +4547,38 @@
                 for (const row of rows) {
                     const id = parseInt(row.dataset.id);
                     const oldName = row.dataset.name;
-                    const action = row.querySelector('.sync-action').value;
+                    const actionSel = row.querySelector('.sync-action');
+                    if (!actionSel) { skipCount++; continue; }
+                    const action = actionSel.value;
                     
                     if (action === 'skip') { skipCount++; continue; }
 
                     if (action === 'leave') {
+                        // 탈퇴 API 결과에서 이동길드 추출
+                        const apiText = row.querySelector('.sync-api-result')?.textContent || '';
+                        const guildMatch = apiText.match(/→\s*(.+?)\s*이동/);
+                        const leaveReason = guildMatch ? `${guildMatch[1]}(으)로 이동` : '';
+                        
                         const { error } = await supaDb.from('member_records').update({ 
-                            status: 'left', leave_date: today 
+                            status: 'left', leave_date: today,
+                            ...(leaveReason && !window._recordsState.data.find(r => r.id === id)?.leave_reason ? { leave_reason: leaveReason } : {})
                         }).eq('id', id);
                         if (error) throw error;
                         const rec = window._recordsState.data.find(r => r.id === id);
-                        if (rec) { rec.status = 'left'; rec.leave_date = today; }
+                        if (rec) { rec.status = 'left'; rec.leave_date = today; if (leaveReason && !rec.leave_reason) rec.leave_reason = leaveReason; }
                         leaveCount++;
                     }
 
                     if (action === 'rename') {
-                        const newName = row.querySelector('.nick-select').value;
-                        if (!newName) { window.showMsg(`${oldName}: 새 닉네임을 선택해주세요`, 'error'); continue; }
+                        const newName = row.querySelector('.nick-input')?.value?.trim();
+                        if (!newName) { window.showMsg(`${oldName}: 새 닉네임을 입력해주세요`, 'error'); continue; }
                         const { error } = await supaDb.from('member_records').update({ 
                             nickname: newName,
-                            referrer: (window._recordsState.data.find(r => r.id === id)?.referrer || '') + (` (구 ${oldName})`)
+                            referrer: ((window._recordsState.data.find(r => r.id === id)?.referrer || '') + ` (구 ${oldName})`).trim()
                         }).eq('id', id);
                         if (error) throw error;
                         const rec = window._recordsState.data.find(r => r.id === id);
-                        if (rec) { rec.nickname = newName; rec.referrer = (rec.referrer || '') + ` (구 ${oldName})`; }
+                        if (rec) { rec.nickname = newName; rec.referrer = ((rec.referrer || '') + ` (구 ${oldName})`).trim(); }
                         renameCount++;
                     }
                 }
@@ -4516,7 +4589,8 @@
                 if (skipCount) msgs.push(`유지 ${skipCount}명`);
                 window.showMsg(msgs.join(', ') + ' 처리 완료!', 'success');
                 document.getElementById('recSyncModal')?.remove();
-                window._recRenderTable();
+                window._recordsState.data = []; // 새로 로드
+                window._recToggleView('table');
             } catch(e) {
                 window.showMsg('처리 실패: ' + e.message, 'error');
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check mr-1"></i>재시도'; }
